@@ -2,6 +2,8 @@ package main
 
 import (
 	"adult-short-videos/common/middleware"
+	favoriteHandler "adult-short-videos/services/favorite/handler"
+	favoriteModel "adult-short-videos/services/favorite/model"
 	userHandler "adult-short-videos/services/user/handler"
 	userModel "adult-short-videos/services/user/model"
 	videoHandler "adult-short-videos/services/video/handler"
@@ -24,6 +26,8 @@ func main() {
 	}
 
 	// ========== 第2步: 自动迁移数据库表 ==========
+
+	// 用户相关表
 	err = db.AutoMigrate(
 		&userModel.User{},
 		&userModel.UserStatistics{},
@@ -46,6 +50,16 @@ func main() {
 
 	fmt.Println("✅ 数据库表创建成功")
 
+	// 收藏表
+	err = db.AutoMigrate(
+		&favoriteModel.Favorite{},
+	)
+	if err != nil {
+		log.Fatal("收藏表迁移失败:", err)
+	}
+
+	fmt.Println("✅ 数据库表创建成功")
+
 	// ========== 第3步: 配置参数 ==========
 	jwtSecret := "your-secret-key-change-in-production" // JWT 密钥
 	jwtExpire := int64(86400)                           // 24小时
@@ -59,6 +73,7 @@ func main() {
 	// ========== 第6步: 创建处理器 ==========
 	userHandler := userHandler.NewUserHandler(db, jwtSecret, jwtExpire)
 	videoHandler := videoHandler.NewVideoHandler(db)
+	favoriteHandler := favoriteHandler.NewFavoriteHandler(db)
 
 	// ========== 第7步: 注册路由 ==========
 	api := r.Group("/api")
@@ -85,6 +100,16 @@ func main() {
 			video.GET("/detail/:id", videoHandler.GetVideoDetail) // 视频详情
 			video.GET("/hot", videoHandler.GetHotVideos)          // 热门视频
 		}
+
+		// ========== 收藏路由 ==========
+		favorite := api.Group("/favorite")
+		favorite.Use(middleware.AuthMiddleware(jwtSecret)) // 所有收藏接口都需要认证
+		{
+			favorite.POST("/add", favoriteHandler.AddFavorite)               // 添加收藏
+			favorite.GET("/remove/:videoId", favoriteHandler.RemoveFavorite) // 取消收藏
+			favorite.GET("/list", favoriteHandler.GetFavoriteList)           // 收藏列表
+			favorite.GET("/check/:videoId", favoriteHandler.CheckFavorite)   // 检查收藏状态
+		}
 	}
 
 	// ========== 第8步: 启动服务器 ==========
@@ -100,6 +125,11 @@ func main() {
 	fmt.Println("       参数: page=1&size=20&region=日本&category=职场")
 	fmt.Println("  GET  http://localhost:8080/api/video/detail/:id   - 视频详情")
 	fmt.Println("  GET  http://localhost:8080/api/video/hot          - 热门视频")
+	fmt.Println("\n【收藏服务】（需要认证）")
+	fmt.Println("  POST   http://localhost:8080/api/favorite/add           - 添加收藏")
+	fmt.Println("  GET    http://localhost:8080/api/favorite/remove/:id    - 取消收藏")
+	fmt.Println("  GET    http://localhost:8080/api/favorite/list          - 收藏列表")
+	fmt.Println("  GET    http://localhost:8080/api/favorite/check/:id     - 检查收藏状态")
 	fmt.Println()
 
 	if err := r.Run(port); err != nil {
