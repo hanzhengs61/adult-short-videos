@@ -1,0 +1,13 @@
+services:
+  db:
+    image: postgres:18
+    container_name: postgres_server
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: adult_short_videos
+      TZ: Asia/Shanghai
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./pgdata:/var/lib/postgresql
