@@ -6,6 +6,7 @@ import (
 	favoriteModel "adult-short-videos/services/favorite/model"
 	playHandler "adult-short-videos/services/play/handler"
 	playModel "adult-short-videos/services/play/model"
+	searchHandler "adult-short-videos/services/search/handler"
 	storageHandler "adult-short-videos/services/storage/handler"
 	"adult-short-videos/services/storage/scheduler"
 	userHandler "adult-short-videos/services/user/handler"
@@ -64,11 +65,12 @@ func main() {
 	r.Use(middleware.CORS()) // 跨域中间件
 
 	// ========== 第6步: 创建处理器 ==========
-	userHandler := userHandler.NewUserHandler(db, jwtSecret, jwtExpire)
-	videoHandler := videoHandler.NewVideoHandler(db)
-	favoriteHandler := favoriteHandler.NewFavoriteHandler(db)
-	playHandler := playHandler.NewPlayHandler(db)
-	storageHandler := storageHandler.NewStorageHandler()
+	userHandlerInstance := userHandler.NewUserHandler(db, jwtSecret, jwtExpire)
+	videoHandlerInstance := videoHandler.NewVideoHandler(db)
+	favoriteHandlerInstance := favoriteHandler.NewFavoriteHandler(db)
+	playHandlerInstance := playHandler.NewPlayHandler(db)
+	storageHandlerInstance := storageHandler.NewStorageHandler()
+	searchHandlerInstance := searchHandler.NewSearchHandler(db)
 
 	// ========== 第7步: 注册路由 ==========
 	api := r.Group("/api")
@@ -77,49 +79,58 @@ func main() {
 		user := api.Group("/user")
 		{
 			// 公开路由（不需要认证）
-			user.POST("/register", userHandler.Register) // 注册
-			user.POST("/login", userHandler.Login)       // 登录
+			user.POST("/register", userHandlerInstance.Register) // 注册
+			user.POST("/login", userHandlerInstance.Login)       // 登录
 
 			// 需要认证的路由
 			auth := user.Group("")
 			auth.Use(middleware.AuthMiddleware(jwtSecret)) // 使用认证中间件
 			{
-				auth.GET("/info", userHandler.GetUserInfo) // 获取用户信息
+				auth.GET("/info", userHandlerInstance.GetUserInfo) // 获取用户信息
 			}
 		}
 		// ========== 视频路由 ==========
 		video := api.Group("/video")
 		{
 			// 公开路由（不需要认证就能看视频列表）
-			video.GET("/list", videoHandler.GetVideoList)         // 视频列表
-			video.GET("/detail/:id", videoHandler.GetVideoDetail) // 视频详情
-			video.GET("/hot", videoHandler.GetHotVideos)          // 热门视频
+			video.GET("/list", videoHandlerInstance.GetVideoList)         // 视频列表
+			video.GET("/detail/:id", videoHandlerInstance.GetVideoDetail) // 视频详情
+			video.GET("/hot", videoHandlerInstance.GetHotVideos)          // 热门视频
 		}
 
 		// ========== 收藏路由 ==========
 		favorite := api.Group("/favorite")
 		favorite.Use(middleware.AuthMiddleware(jwtSecret)) // 所有收藏接口都需要认证
 		{
-			favorite.POST("/add", favoriteHandler.AddFavorite)               // 添加收藏
-			favorite.GET("/remove/:videoId", favoriteHandler.RemoveFavorite) // 取消收藏
-			favorite.GET("/list", favoriteHandler.GetFavoriteList)           // 收藏列表
-			favorite.GET("/check/:videoId", favoriteHandler.CheckFavorite)   // 检查收藏状态
+			favorite.POST("/add", favoriteHandlerInstance.AddFavorite)               // 添加收藏
+			favorite.GET("/remove/:videoId", favoriteHandlerInstance.RemoveFavorite) // 取消收藏
+			favorite.GET("/list", favoriteHandlerInstance.GetFavoriteList)           // 收藏列表
+			favorite.GET("/check/:videoId", favoriteHandlerInstance.CheckFavorite)   // 检查收藏状态
 		}
 
 		// ========== 播放历史路由 ==========
 		play := api.Group("/play")
 		play.Use(middleware.AuthMiddleware(jwtSecret))
 		{
-			play.POST("/record", playHandler.RecordPlay)                 // 记录播放
-			play.GET("/history", playHandler.GetPlayHistory)             // 播放历史列表
-			play.GET("/history/:videoId", playHandler.DeletePlayHistory) // 删除单条
-			play.GET("/clerHistory", playHandler.ClearPlayHistory)       // 清空历史
+			play.POST("/record", playHandlerInstance.RecordPlay)                 // 记录播放
+			play.GET("/history", playHandlerInstance.GetPlayHistory)             // 播放历史列表
+			play.GET("/history/:videoId", playHandlerInstance.DeletePlayHistory) // 删除单条
+			play.GET("/clerHistory", playHandlerInstance.ClearPlayHistory)       // 清空历史
 		}
 
 		// ========== 存储服务路由 ==========
 		storage := api.Group("/storage")
 		{
-			storage.GET("/proxy", storageHandler.ProxyPlay) // 代理播放
+			storage.GET("/proxy", storageHandlerInstance.ProxyPlay) // 代理播放
+		}
+
+		// ========== 搜索路由 ==========
+		search := api.Group("/search")
+		{
+			search.GET("/videos", searchHandlerInstance.SearchVideos)     // 搜索视频
+			search.GET("/actors", searchHandlerInstance.SearchActors)     // 搜索演员
+			search.POST("/fanhao/", searchHandlerInstance.SearchByFanhao) // 按番号搜索
+			search.GET("/advanced", searchHandlerInstance.AdvancedSearch) // 高级搜索
 		}
 	}
 
@@ -152,6 +163,13 @@ func main() {
 	fmt.Println("  GET    http://localhost:8080/api/play/history			- 清空历史")
 	fmt.Println("\n【存储服务】")
 	fmt.Println("  GET    http://localhost:8080/api/storage/proxy      - 代理播放")
+	fmt.Println("\n【搜索服务】")
+	fmt.Println("  GET  http://localhost:8080/api/search/videos       - 搜索视频")
+	fmt.Println("       参数: q=关键词&page=1&size=20")
+	fmt.Println("  GET  http://localhost:8080/api/search/actors       - 搜索演员")
+	fmt.Println("  GET  http://localhost:8080/api/search/fanhao/:id   - 按番号搜索")
+	fmt.Println("  GET  http://localhost:8080/api/search/advanced     - 高级搜索")
+	fmt.Println("       参数: q=关键词&region=日本&category=职场&sort=hot")
 	fmt.Println()
 
 	if err := r.Run(port); err != nil {
