@@ -4,13 +4,18 @@ import (
 	"adult-short-videos/common/middleware"
 	favoriteHandler "adult-short-videos/services/favorite/handler"
 	favoriteModel "adult-short-videos/services/favorite/model"
+	playHandler "adult-short-videos/services/play/handler"
+	playModel "adult-short-videos/services/play/model"
+	storageHandler "adult-short-videos/services/storage/handler"
+	"adult-short-videos/services/storage/scheduler"
 	userHandler "adult-short-videos/services/user/handler"
 	userModel "adult-short-videos/services/user/model"
 	videoHandler "adult-short-videos/services/video/handler"
-	"adult-short-videos/services/video/model"
 	videoModel "adult-short-videos/services/video/model"
+	"context"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/driver/postgres"
@@ -27,35 +32,23 @@ func main() {
 
 	// ========== 第2步: 自动迁移数据库表 ==========
 
-	// 用户相关表
 	err = db.AutoMigrate(
+		// 用户相关
 		&userModel.User{},
 		&userModel.UserStatistics{},
 		&userModel.LoginLog{},
-	)
-	if err != nil {
-		log.Fatal("数据库迁移失败:", err)
-	}
-
-	// 视频相关表
-	err = db.AutoMigrate(
-		&model.Video{},
+		// 视频相关
+		&videoModel.Video{},
 		&videoModel.VideoHeatStats{},
 		&videoModel.Actor{},
 		&videoModel.VideoActor{},
-	)
-	if err != nil {
-		log.Fatal("视频表迁移失败:", err)
-	}
-
-	fmt.Println("✅ 数据库表创建成功")
-
-	// 收藏表
-	err = db.AutoMigrate(
+		// 收藏
 		&favoriteModel.Favorite{},
+		// 播放历史
+		&playModel.PlayHistory{},
 	)
 	if err != nil {
-		log.Fatal("收藏表迁移失败:", err)
+		log.Fatal("数据库迁移失败:", err)
 	}
 
 	fmt.Println("✅ 数据库表创建成功")
@@ -74,6 +67,8 @@ func main() {
 	userHandler := userHandler.NewUserHandler(db, jwtSecret, jwtExpire)
 	videoHandler := videoHandler.NewVideoHandler(db)
 	favoriteHandler := favoriteHandler.NewFavoriteHandler(db)
+	playHandler := playHandler.NewPlayHandler(db)
+	storageHandler := storageHandler.NewStorageHandler()
 
 	// ========== 第7步: 注册路由 ==========
 	api := r.Group("/api")
@@ -110,7 +105,27 @@ func main() {
 			favorite.GET("/list", favoriteHandler.GetFavoriteList)           // 收藏列表
 			favorite.GET("/check/:videoId", favoriteHandler.CheckFavorite)   // 检查收藏状态
 		}
+
+		// ========== 播放历史路由 ==========
+		play := api.Group("/play")
+		play.Use(middleware.AuthMiddleware(jwtSecret))
+		{
+			play.POST("/record", playHandler.RecordPlay)                 // 记录播放
+			play.GET("/history", playHandler.GetPlayHistory)             // 播放历史列表
+			play.GET("/history/:videoId", playHandler.DeletePlayHistory) // 删除单条
+			play.GET("/clerHistory", playHandler.ClearPlayHistory)       // 清空历史
+		}
+
+		// ========== 存储服务路由 ==========
+		storage := api.Group("/storage")
+		{
+			storage.GET("/proxy", storageHandler.ProxyPlay) // 代理播放
+		}
 	}
+
+	// ========== 启动热度计算器 ==========
+	heatCalc := scheduler.NewHeatCalculator(db, 5*time.Minute) // 每5分钟计算一次
+	go heatCalc.Start(context.Background())
 
 	// ========== 第8步: 启动服务器 ==========
 	port := ":8080"
@@ -130,6 +145,13 @@ func main() {
 	fmt.Println("  GET    http://localhost:8080/api/favorite/remove/:id    - 取消收藏")
 	fmt.Println("  GET    http://localhost:8080/api/favorite/list          - 收藏列表")
 	fmt.Println("  GET    http://localhost:8080/api/favorite/check/:id     - 检查收藏状态")
+	fmt.Println("\n【播放历史】")
+	fmt.Println("  POST   http://localhost:8080/api/play/record				- 记录播放")
+	fmt.Println("  GET    http://localhost:8080/api/play/history			- 播放历史列表")
+	fmt.Println("  GET    http://localhost:8080/api/play/history/:id		- 删除单条")
+	fmt.Println("  GET    http://localhost:8080/api/play/history			- 清空历史")
+	fmt.Println("\n【存储服务】")
+	fmt.Println("  GET    http://localhost:8080/api/storage/proxy      - 代理播放")
 	fmt.Println()
 
 	if err := r.Run(port); err != nil {
