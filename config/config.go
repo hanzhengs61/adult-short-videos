@@ -23,6 +23,7 @@ type ServerConfig struct {
 	Mode         string        `yaml:"mode"` // debug, release
 	ReadTimeout  time.Duration `yaml:"read_timeout"`
 	WriteTimeout time.Duration `yaml:"write_timeout"`
+	CORSOrigins  string        `yaml:"cors_origins"` // 逗号分隔允许的 Origin
 }
 
 // DatabaseConfig 数据库配置
@@ -35,6 +36,7 @@ type DatabaseConfig struct {
 	MaxIdleConns    int    `yaml:"max_idle_conns"`
 	MaxOpenConns    int    `yaml:"max_open_conns"`
 	ConnMaxLifetime int    `yaml:"conn_max_lifetime"` // 秒
+	SSLMode         string `yaml:"ssl_mode"`           // disable, require, verify-full
 }
 
 // JWTConfig JWT配置
@@ -85,6 +87,15 @@ func Load(path string) (*Config, error) {
 	if redisPassword := os.Getenv("REDIS_PASSWORD"); redisPassword != "" {
 		config.Redis.Password = redisPassword
 	}
+	if corsOrigins := os.Getenv("CORS_ALLOWED_ORIGINS"); corsOrigins != "" {
+		config.Server.CORSOrigins = corsOrigins
+	}
+	if sslMode := os.Getenv("DB_SSL_MODE"); sslMode != "" {
+		config.Database.SSLMode = sslMode
+	}
+	if config.Database.SSLMode == "" {
+		config.Database.SSLMode = "disable"
+	}
 
 	return &config, nil
 }
@@ -92,7 +103,7 @@ func Load(path string) (*Config, error) {
 // GetDSN 获取数据库连接字符串
 func (c *DatabaseConfig) GetDSN() string {
 	return fmt.Sprintf(
-		"host=%s port=%d user=%s password=%s dbname=%s sslmode=disable TimeZone=Asia/Shanghai",
-		c.Host, c.Port, c.User, c.Password, c.DBName,
+		"host=%s port=%d user=%s password=%s dbname=%s sslmode=%s TimeZone=Asia/Shanghai",
+		c.Host, c.Port, c.User, c.Password, c.DBName, c.SSLMode,
 	)
 }
