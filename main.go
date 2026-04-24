@@ -213,7 +213,15 @@ func setupRouter(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	// 恢复中间件
 	r.Use(gin.Recovery())
 	// CORS 中间件
-	r.Use(middleware.CORS())
+	var corsOrigins []string
+	if cfg.Server.CORSOrigins != "" {
+		for _, o := range strings.Split(cfg.Server.CORSOrigins, ",") {
+			if o = strings.TrimSpace(o); o != "" {
+				corsOrigins = append(corsOrigins, o)
+			}
+		}
+	}
+	r.Use(middleware.CORS(corsOrigins))
 	// 限流中间件（每秒10个请求，突发20个）
 	limiter := middleware.NewIPRateLimiter(rate.Limit(10), 20)
 	r.Use(middleware.RateLimit(limiter))
@@ -243,6 +251,7 @@ func setupRouter(cfg *config.Config, db *gorm.DB) *gin.Engine {
 			auth.Use(middleware.AuthMiddleware(cfg.JWT.Secret))
 			{
 				auth.GET("/info", userHandler.GetUserInfo)
+				auth.POST("/logout", userHandler.Logout)
 			}
 		}
 
@@ -417,6 +426,7 @@ func printStartupInfo(cfg *config.Config) {
 				"POST /api/user/register      - 用户注册",
 				"POST /api/user/login         - 用户登录",
 				"GET  /api/user/info          - 获取用户信息（需认证）",
+				"POST /api/user/logout        - 退出登录（需认证）",
 			},
 		},
 		{

@@ -1,9 +1,13 @@
 package middleware
 
 import (
+	"crypto/sha256"
+	"fmt"
+	"strings"
+
+	"adult-short-videos/common/cache"
 	"adult-short-videos/common/response"
 	"adult-short-videos/common/utils"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -45,7 +49,17 @@ func AuthMiddleware(jwtSecret string) gin.HandlerFunc {
 			return
 		}
 
-		// 4: 将用户信息存入上下文
+		// 4: 检查 Token 是否在黑名单（已退出登录）
+		if cache.Client != nil {
+			hash := sha256.Sum256([]byte(tokenString))
+			blacklistKey := fmt.Sprintf("blacklist:%x", hash)
+			if exists, _ := cache.Exists(c.Request.Context(), blacklistKey); exists {
+				response.Unauthorized(c, "Token 已失效，请重新登录")
+				return
+			}
+		}
+
+		// 5: 将用户信息存入上下文
 		c.Set("user_id", claims.UserID)
 		c.Set("username", claims.Username)
 
@@ -53,19 +67,32 @@ func AuthMiddleware(jwtSecret string) gin.HandlerFunc {
 	}
 }
 
-// CORS 跨域中间件
-// 允许前端跨域访问 API
-func CORS() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		// 允许所有来源访问（生产环境应该限制具体域名）
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
-		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+// CORS 跨域中间件，只允许白名单中的 Origin 跨域访问
+func CORS(allowedOrigins []string) gin.HandlerFunc {
+	originSet := make(map[string]bool, len(allowedOrigins))
+	for _, o := range allowedOrigins {
+		if o = strings.TrimSpace(o); o != "" {
+			originSet[o] = true
+		}
+	}
 
-		// 处理预检请求
+	return func(c *gin.Context) {
+		origin := c.GetHeader("Origin")
+		allowed := origin != "" && originSet[origin]
+
+		if allowed {
+			c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
+			c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+			c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+			c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		}
+
 		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(204)
+			if allowed {
+				c.AbortWithStatus(204)
+			} else {
+				c.AbortWithStatus(403)
+			}
 			return
 		}
 

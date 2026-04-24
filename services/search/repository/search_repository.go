@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	videoModel "adult-short-videos/services/video/model"
@@ -68,13 +67,10 @@ func (r *searchRepository) SearchVideos(ctx context.Context, keyword string, off
 
 	// 按相关度排序：番号完全匹配 > 标题匹配 > 播放次数
 	err := query.
-		Order(fmt.Sprintf(`
-			CASE 
-				WHEN fanhao ILIKE '%s' THEN 1
-				WHEN title ILIKE '%s' THEN 2
-				ELSE 3
-			END, play_count DESC
-		`, keyword, likeKeyword)).
+		Order(gorm.Expr(
+			"CASE WHEN fanhao ILIKE ? THEN 1 WHEN title ILIKE ? THEN 2 ELSE 3 END, play_count DESC",
+			likeKeyword, likeKeyword,
+		)).
 		Offset(offset).
 		Limit(limit).
 		Find(&videos).Error

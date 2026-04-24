@@ -1,8 +1,15 @@
 package handler
 
 import (
+	"crypto/sha256"
+	"fmt"
+	"strings"
+	"time"
+
+	"adult-short-videos/common/cache"
 	"adult-short-videos/common/errors"
 	"adult-short-videos/common/response"
+	"adult-short-videos/common/utils"
 	"adult-short-videos/services/user/logic"
 	"adult-short-videos/services/user/repository"
 
@@ -50,8 +57,8 @@ func (h *UserHandler) Register(c *gin.Context) {
 	}
 
 	// 验证密码长度
-	if len(req.Password) < 6 || len(req.Password) > 50 {
-		response.Error(c, errors.CodeInvalidParam, "密码长度必须在6-50个字符之间")
+	if len(req.Password) < 8 || len(req.Password) > 50 {
+		response.Error(c, errors.CodeInvalidParam, "密码长度必须在8-50个字符之间")
 		return
 	}
 
@@ -151,4 +158,37 @@ func (h *UserHandler) GetUserInfo(c *gin.Context) {
 	}
 
 	response.Success(c, userInfo)
+}
+
+// Logout 处理退出登录
+// 路由: POST /api/user/logout
+// 将当前 Token 加入 Redis 黑名单，TTL = Token 剩余有效期
+func (h *UserHandler) Logout(c *gin.Context) {
+	authHeader := c.GetHeader("Authorization")
+	var tokenString string
+	if strings.HasPrefix(authHeader, "Bearer ") {
+		tokenString = strings.TrimSpace(strings.TrimPrefix(authHeader, "Bearer "))
+	} else {
+		tokenString = strings.TrimSpace(authHeader)
+	}
+
+	if tokenString == "" {
+		response.Error(c, errors.CodeInvalidParam, "未提供令牌")
+		return
+	}
+
+	claims, err := utils.ParseToken(tokenString, h.jwtSecret)
+	if err != nil {
+		response.Error(c, errors.CodeInvalidParam, "令牌无效")
+		return
+	}
+
+	remaining := time.Until(claims.ExpiresAt.Time)
+	if remaining > 0 && cache.Client != nil {
+		hash := sha256.Sum256([]byte(tokenString))
+		key := fmt.Sprintf("blacklist:%x", hash)
+		cache.Client.Set(c.Request.Context(), key, "1", remaining)
+	}
+
+	response.SuccessWithMsg(c, "已退出登录", nil)
 }
