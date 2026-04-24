@@ -36,7 +36,7 @@ mkdir -p data/redis
 
 # 启动服务
 echo -e "${YELLOW}🚀 启动服务...${NC}"
-docker-compose up -d
+docker-compose -f deployments/docker-compose.yml up -d
 
 # 等待服务就绪
 echo -e "${YELLOW}⏳ 等待服务就绪...${NC}"
@@ -50,7 +50,7 @@ echo -e "${BLUE}========================================${NC}"
 echo ""
 
 # 显示服务状态
-docker-compose ps
+docker-compose -f deployments/docker-compose.yml ps
 
 echo ""
 echo -e "${GREEN}📝 访问地址:${NC}"

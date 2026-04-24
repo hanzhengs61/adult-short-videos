@@ -5,6 +5,6 @@
 # ========================================
 
 echo "🛑 停止服务..."
-docker-compose down
+docker-compose -f deployments/docker-compose.yml down
 
 echo "✅ 服务已停止"

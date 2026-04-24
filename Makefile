@@ -30,13 +30,13 @@ help:
 # 编译应用
 build:
 	@echo "🔨 编译应用..."
-	@go build -o bin/main .
+	@go build -o bin/main ./cmd/server/
 	@echo "✅ 编译完成"
 
 # 运行应用
 run:
 	@echo "🚀 运行应用..."
-	@go run main.go
+	@go run ./cmd/server/
 
 # 运行测试
 test:
@@ -65,7 +65,7 @@ clean:
 # 构建 Docker 镜像
 docker-build:
 	@echo "🐳 构建 Docker 镜像..."
-	@docker build -t adult-videos-api:latest .
+	@docker build -f build/Dockerfile -t adult-videos-api:latest .
 	@echo "✅ 镜像构建完成"
 
 # 启动 Docker 服务
@@ -77,17 +77,17 @@ docker-up:
 # 停止 Docker 服务
 docker-down:
 	@echo "🛑 停止 Docker 服务..."
-	@docker-compose down
+	@docker-compose -f deployments/docker-compose.yml down
 	@echo "✅ 服务已停止"
 
 # 查看日志
 logs:
-	@docker-compose logs -f app
+	@docker-compose -f deployments/docker-compose.yml logs -f app
 
 # 数据库迁移
 migrate:
 	@echo "📊 数据库迁移..."
-	@go run main.go migrate
+	@go run ./cmd/server/ migrate
 	@echo "✅ 迁移完成"
 
 # 生成 API 文档

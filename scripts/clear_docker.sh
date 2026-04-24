@@ -23,7 +23,7 @@ fi
 # ====== Step 2: 停止服务 ======
 echo ""
 echo "🛑 [Step 2/6] 停止服务..."
-docker compose down
+docker compose -f deployments/docker-compose.yml down
 echo "   ✅ 服务已停止"
 
 # ====== Step 3: 处理旧 Volume ======
@@ -56,7 +56,7 @@ fi
 # ====== Step 5: 启动新版本 ======
 echo ""
 echo "🚀 [Step 5/6] 启动 PostgreSQL 18..."
-docker compose up -d postgres
+docker compose -f deployments/docker-compose.yml up -d postgres
 
 # 等待就绪
 echo "   ⏳ 等待 PostgreSQL 就绪..."
