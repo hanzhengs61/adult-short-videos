@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"adult-short-videos/common/errors"
 	"adult-short-videos/common/response"
 	"adult-short-videos/services/user/logic"
 	"adult-short-videos/services/user/repository"
@@ -37,26 +38,26 @@ func (h *UserHandler) Register(c *gin.Context) {
 	// ShouldBindJSON 会自动解析 JSON 请求体
 	if err := c.ShouldBindJSON(&req); err != nil {
 		// 参数解析失败
-		response.Error(c, response.INVALID_PARAM, "参数格式错误")
+		response.HandleError(c, err)
 		return
 	}
 
 	// 2: 参数验证
 	// 验证用户名长度
 	if len(req.Username) < 3 || len(req.Username) > 20 {
-		response.Error(c, response.INVALID_PARAM, "用户名长度必须在3-20个字符之间")
+		response.Error(c, errors.CodeInvalidParam, "用户名长度必须在3-20个字符之间")
 		return
 	}
 
 	// 验证密码长度
 	if len(req.Password) < 6 || len(req.Password) > 50 {
-		response.Error(c, response.INVALID_PARAM, "密码长度必须在6-50个字符之间")
+		response.Error(c, errors.CodeInvalidParam, "密码长度必须在6-50个字符之间")
 		return
 	}
 
 	// 验证邮箱格式（简单验证）
 	if req.Email == "" {
-		response.Error(c, response.INVALID_PARAM, "邮箱不能为空")
+		response.Error(c, errors.CodeInvalidParam, "邮箱不能为空")
 		return
 	}
 
@@ -73,7 +74,7 @@ func (h *UserHandler) Register(c *gin.Context) {
 	resp, err := l.Register(&req)
 	if err != nil {
 		// 业务逻辑返回错误
-		response.Error(c, response.ERROR, err.Error())
+		response.HandleError(c, err)
 		return
 	}
 
@@ -87,18 +88,18 @@ func (h *UserHandler) Login(c *gin.Context) {
 	var req logic.LoginReq
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Error(c, response.INVALID_PARAM, "参数格式错误")
+		response.Error(c, errors.CodeInvalidParam, "参数格式错误")
 		return
 	}
 
 	// 2: 参数验证
 	if req.Username == "" {
-		response.Error(c, response.INVALID_PARAM, "用户名不能为空")
+		response.Error(c, errors.CodeInvalidParam, "用户名不能为空")
 		return
 	}
 
 	if req.Password == "" {
-		response.Error(c, response.INVALID_PARAM, "密码不能为空")
+		response.Error(c, errors.CodeInvalidParam, "密码不能为空")
 		return
 	}
 
@@ -113,7 +114,7 @@ func (h *UserHandler) Login(c *gin.Context) {
 
 	resp, err := l.Login(&req)
 	if err != nil {
-		response.Error(c, response.ERROR, err.Error())
+		response.HandleError(c, err)
 		return
 	}
 
@@ -133,7 +134,7 @@ func (h *UserHandler) GetUserInfo(c *gin.Context) {
 	// 2: 查询用户信息
 	user, err := h.userRepo.FindByID(c.Request.Context(), userId.(int64))
 	if err != nil {
-		response.Error(c, response.ERROR, "查询用户失败")
+		response.HandleError(c, err)
 		return
 	}
 

@@ -28,14 +28,14 @@ func NewSearchHandler(db *gorm.DB) *SearchHandler {
 func (h *SearchHandler) SearchVideos(c *gin.Context) {
 	var req logic.SearchReq
 	if err := c.ShouldBindQuery(&req); err != nil {
-		response.Error(c, response.INVALID_PARAM, "参数格式错误")
+		response.HandleError(c, err)
 		return
 	}
 
 	l := logic.NewSearchLogic(c.Request.Context(), h.searchRepo)
 	resp, err := l.Search(&req)
 	if err != nil {
-		response.Error(c, response.ERROR, err.Error())
+		response.HandleError(c, err)
 		return
 	}
 
@@ -48,14 +48,14 @@ func (h *SearchHandler) SearchVideos(c *gin.Context) {
 func (h *SearchHandler) SearchActors(c *gin.Context) {
 	var req logic.SearchReq
 	if err := c.ShouldBindQuery(&req); err != nil {
-		response.Error(c, response.INVALID_PARAM, "参数格式错误")
+		response.HandleError(c, err)
 		return
 	}
 
 	l := logic.NewActorSearchLogic(c.Request.Context(), h.searchRepo)
 	resp, err := l.SearchActors(&req)
 	if err != nil {
-		response.Error(c, response.ERROR, err.Error())
+		response.HandleError(c, err)
 		return
 	}
 
@@ -67,14 +67,14 @@ func (h *SearchHandler) SearchActors(c *gin.Context) {
 func (h *SearchHandler) SearchByFanhao(c *gin.Context) {
 	var req logic.SearchFanhaoReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Error(c, response.INVALID_PARAM, "参数格式错误")
+		response.HandleError(c, err)
 		return
 	}
 
 	l := logic.NewFanhaoSearchLogic(c.Request.Context(), h.searchRepo)
 	video, err := l.SearchByFanhao(req)
 	if err != nil {
-		response.Error(c, response.ERROR, err.Error())
+		response.HandleError(c, err)
 		return
 	}
 
@@ -102,14 +102,14 @@ func (h *SearchHandler) SearchByFanhao(c *gin.Context) {
 func (h *SearchHandler) AdvancedSearch(c *gin.Context) {
 	var req logic.AdvancedSearchReq
 	if err := c.ShouldBindQuery(&req); err != nil {
-		response.Error(c, response.INVALID_PARAM, "参数格式错误")
+		response.HandleError(c, err)
 		return
 	}
 
 	l := logic.NewAdvancedSearchLogic(c.Request.Context(), h.searchRepo)
 	resp, err := l.AdvancedSearch(&req)
 	if err != nil {
-		response.Error(c, response.ERROR, err.Error())
+		response.HandleError(c, err)
 		return
 	}
 

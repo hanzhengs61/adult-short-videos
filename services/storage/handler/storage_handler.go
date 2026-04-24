@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"adult-short-videos/common/errors"
 	"adult-short-videos/common/response"
 	"adult-short-videos/services/storage/proxy"
 
@@ -26,7 +27,7 @@ func (h *StorageHandler) ProxyPlay(c *gin.Context) {
 	// 获取目标 URL
 	targetURL := c.Query("url")
 	if targetURL == "" {
-		response.Error(c, response.INVALID_PARAM, "缺少 url 参数")
+		response.Error(c, errors.CodeInvalidParam, "缺少 url 参数")
 		return
 	}
 
@@ -34,7 +35,7 @@ func (h *StorageHandler) ProxyPlay(c *gin.Context) {
 	err := h.proxy.ProxyRequest(targetURL, c.Writer, c.Request)
 	if err != nil {
 		// 代理失败
-		response.Error(c, response.ERROR, "代理请求失败: "+err.Error())
+		response.HandleError(c, err)
 		return
 	}
 

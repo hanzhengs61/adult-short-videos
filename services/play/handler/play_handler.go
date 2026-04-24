@@ -38,13 +38,13 @@ func (h *PlayHandler) RecordPlay(c *gin.Context) {
 
 	var req logic.RecordPlayReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Error(c, response.INVALID_PARAM, "参数格式错误")
+		response.HandleError(c, err)
 		return
 	}
 
 	l := logic.NewRecordPlayLogic(c.Request.Context(), h.playRepo, h.videoRepo, h.db)
 	if err := l.RecordPlay(userId.(int64), &req); err != nil {
-		response.Error(c, response.ERROR, err.Error())
+		response.HandleError(c, err)
 		return
 	}
 
@@ -74,7 +74,7 @@ func (h *PlayHandler) GetPlayHistory(c *gin.Context) {
 	l := logic.NewPlayHistoryListLogic(c.Request.Context(), h.playRepo)
 	resp, err := l.GetPlayHistoryList(userId.(int64), req)
 	if err != nil {
-		response.Error(c, response.ERROR, err.Error())
+		response.HandleError(c, err)
 		return
 	}
 
@@ -93,12 +93,12 @@ func (h *PlayHandler) DeletePlayHistory(c *gin.Context) {
 	videoIdStr := c.Param("videoId")
 	videoId, err := strconv.ParseInt(videoIdStr, 10, 64)
 	if err != nil {
-		response.Error(c, response.INVALID_PARAM, "视频ID格式错误")
+		response.HandleError(c, err)
 		return
 	}
 
 	if err := h.playRepo.Delete(c.Request.Context(), userId.(int64), videoId); err != nil {
-		response.Error(c, response.ERROR, "删除失败")
+		response.HandleError(c, err)
 		return
 	}
 
@@ -115,7 +115,7 @@ func (h *PlayHandler) ClearPlayHistory(c *gin.Context) {
 	}
 
 	if err := h.playRepo.DeleteAll(c.Request.Context(), userId.(int64)); err != nil {
-		response.Error(c, response.ERROR, "清空失败")
+		response.HandleError(c, err)
 		return
 	}
 

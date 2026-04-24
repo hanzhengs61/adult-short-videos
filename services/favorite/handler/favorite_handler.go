@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"adult-short-videos/common/errors"
 	"strconv"
 
 	"adult-short-videos/common/response"
@@ -41,12 +42,11 @@ func (h *FavoriteHandler) AddFavorite(c *gin.Context) {
 
 	var req logic.AddFavoriteReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Error(c, response.INVALID_PARAM, "参数格式错误")
-		return
+		response.HandleError(c, err)
 	}
 
 	if req.VideoId <= 0 {
-		response.Error(c, response.INVALID_PARAM, "视频 ID无效")
+		response.Error(c, errors.CodeInvalidParam, "视频 ID无效")
 		return
 	}
 
@@ -58,7 +58,7 @@ func (h *FavoriteHandler) AddFavorite(c *gin.Context) {
 	)
 
 	if err := l.AddFavorite(userId.(int64), &req); err != nil {
-		response.Error(c, response.ERROR, err.Error())
+		response.HandleError(c, err)
 		return
 	}
 
@@ -81,7 +81,7 @@ func (h *FavoriteHandler) RemoveFavorite(c *gin.Context) {
 	videoIdStr := c.Param("videoId")
 	videoId, err := strconv.ParseInt(videoIdStr, 10, 64)
 	if err != nil {
-		response.Error(c, response.INVALID_PARAM, "视频ID格式错误")
+		response.HandleError(c, err)
 		return
 	}
 
@@ -93,7 +93,7 @@ func (h *FavoriteHandler) RemoveFavorite(c *gin.Context) {
 
 	// 删除收藏
 	if err := l.RemoveFavorite(userId.(int64), videoId); err != nil {
-		response.Error(c, response.ERROR, err.Error())
+		response.HandleError(c, err)
 		return
 	}
 
@@ -130,7 +130,7 @@ func (h *FavoriteHandler) GetFavoriteList(c *gin.Context) {
 	// 获取收藏列表
 	resp, err := l.GetFavoriteList(userId.(int64), req)
 	if err != nil {
-		response.Error(c, response.ERROR, err.Error())
+		response.HandleError(c, err)
 		return
 	}
 
@@ -152,14 +152,14 @@ func (h *FavoriteHandler) CheckFavorite(c *gin.Context) {
 	videoIdStr := c.Param("videoId")
 	videoId, err := strconv.ParseInt(videoIdStr, 10, 64)
 	if err != nil {
-		response.Error(c, response.INVALID_PARAM, "视频 ID格式错误")
+		response.HandleError(c, err)
 		return
 	}
 
 	// 检查是否已收藏
 	isFavorited, err := h.favoriteRepo.Exists(c.Request.Context(), userId.(int64), videoId)
 	if err != nil {
-		response.Error(c, response.ERROR, "检查收藏状态失败")
+		response.HandleError(c, err)
 		return
 	}
 

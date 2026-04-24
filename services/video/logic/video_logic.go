@@ -1,10 +1,10 @@
 package logic
 
 import (
+	"adult-short-videos/common/errors"
 	"adult-short-videos/services/video/model"
 	"adult-short-videos/services/video/repository"
 	"context"
-	"errors"
 
 	"gorm.io/gorm"
 )
@@ -83,7 +83,7 @@ func (l *VideoListLogic) GetVideoList(req *VideoListReq) (*VideoListResp, error)
 
 	videos, total, err := l.videoRepo.List(l.ctx, offset, req.Size, filters)
 	if err != nil {
-		return nil, errors.New("查询视频列表失败")
+		return nil, errors.New(errors.CodeVideoNotFound, "查询视频列表失败")
 	}
 
 	// 转换为响应格式
@@ -160,11 +160,8 @@ type VideoDetail struct {
 func (l *VideoDetailLogic) GetVideoDetail(videoId int64) (*VideoDetail, error) {
 	// 查询视频信息
 	video, err := l.videoRepo.FindByID(l.ctx, videoId)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("视频不存在")
-		}
-		return nil, errors.New("查询视频失败")
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return nil, errors.New(errors.CodeVideoNotFound, "查询视频失败")
 	}
 
 	// 构建播放 URL

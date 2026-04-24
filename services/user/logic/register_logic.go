@@ -1,12 +1,15 @@
 package logic
 
 import (
+	"adult-short-videos/common/errors"
+	"adult-short-videos/common/logger"
 	"adult-short-videos/common/utils"
+	"adult-short-videos/common/validator"
 	"adult-short-videos/services/user/model"
 	"adult-short-videos/services/user/repository"
 	"context"
-	"errors"
 
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
@@ -28,12 +31,12 @@ func NewRegisterLogic(ctx context.Context, userRepo repository.UserRepository, j
 	}
 }
 
-// RegisterReq 注册请求参数
+// RegisterReq 注册请求（添加验证标签）
 type RegisterReq struct {
-	Username   string `json:"username"`    // 用户名
-	Password   string `json:"password"`    // 密码
-	Email      string `json:"email"`       // 邮箱
-	InviteCode string `json:"invite_code"` // 邀请码（可选）
+	Username   string `json:"username" validate:"required,username,min=3,max=20"`
+	Password   string `json:"password" validate:"required,min=6,max=50"`
+	Email      string `json:"email" validate:"required,email"`
+	InviteCode string `json:"invite_code"`
 }
 
 // RegisterResp 注册响应
@@ -54,32 +57,38 @@ type RegisterResp struct {
 // 5. 生成邀请码
 // 6. 生成 JWT Token
 func (l *RegisterLogic) Register(req *RegisterReq) (*RegisterResp, error) {
-	// 1: 检查用户名是否已存在
+
+	// 验证请求参数
+	if err := validator.Validate(req); err != nil {
+		return nil, errors.ErrInvalidParam
+	}
+
+	// 检查用户名是否已存在
 	existingUser, err := l.userRepo.FindByUsername(l.ctx, req.Username)
-
-	// 如果查询出错，但不是"记录不存在"错误，说明数据库有问题
-	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, errors.New("数据库查询失败")
+	if err != nil && err != gorm.ErrRecordNotFound {
+		logger.Error("查询用户失败", zap.Error(err), zap.String("username", req.Username))
+		return nil, errors.ErrServerError
 	}
 
-	// 如果找到了用户，说明用户名已存在
 	if existingUser != nil {
-		return nil, errors.New("用户名已存在")
+		return nil, errors.ErrUserExists
 	}
 
-	// 2: 检查邮箱是否已被使用
+	// 检查邮箱是否已被使用
 	existingEmail, err := l.userRepo.FindByEmail(l.ctx, req.Email)
-	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, errors.New("数据库查询失败")
+	if err != nil && err != gorm.ErrRecordNotFound {
+		logger.Error("查询邮箱失败", zap.Error(err), zap.String("email", req.Email))
+		return nil, errors.ErrServerError
 	}
+
 	if existingEmail != nil {
-		return nil, errors.New("邮箱已被注册")
+		return nil, errors.ErrEmailExists
 	}
 
 	// 3: 密码加密
 	hashedPassword, err := utils.PasswordHash(req.Password)
 	if err != nil {
-		return nil, errors.New("密码加密失败")
+		return nil, errors.ErrEncryptError
 	}
 
 	// 4: 创建用户
@@ -93,7 +102,7 @@ func (l *RegisterLogic) Register(req *RegisterReq) (*RegisterResp, error) {
 
 	// 保存到数据库
 	if err := l.userRepo.Create(l.ctx, user); err != nil {
-		return nil, errors.New("创建用户失败")
+		return nil, errors.New(errors.CodeDatabaseError, "创建用户失败")
 	}
 
 	// 5: 生成邀请码
@@ -114,7 +123,7 @@ func (l *RegisterLogic) Register(req *RegisterReq) (*RegisterResp, error) {
 		l.jwtExpire,
 	)
 	if err != nil {
-		return nil, errors.New("生成访问令牌失败")
+		return nil, errors.New(errors.CodeServerError, "生成访问令牌失败")
 	}
 
 	// 生成 Refresh Token（用于刷新 Access Token）
@@ -126,8 +135,13 @@ func (l *RegisterLogic) Register(req *RegisterReq) (*RegisterResp, error) {
 		l.jwtExpire*7, // 7 倍的 Access Token 时间
 	)
 	if err != nil {
-		return nil, errors.New("生成刷新令牌失败")
+		return nil, errors.New(errors.CodeServerError, "生成刷新令牌失败")
 	}
+
+	logger.Info("用户注册成功",
+		zap.Int64("user_id", user.UserId),
+		zap.String("username", user.Username),
+	)
 
 	return &RegisterResp{
 		UserId:       user.UserId,

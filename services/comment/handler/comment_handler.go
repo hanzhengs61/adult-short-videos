@@ -38,14 +38,14 @@ func (h *CommentHandler) AddComment(c *gin.Context) {
 
 	var req logic.AddCommentReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Error(c, response.INVALID_PARAM, "参数格式错误")
+		response.HandleError(c, err)
 		return
 	}
 
 	l := logic.NewAddCommentLogic(c.Request.Context(), h.commentRepo, h.videoRepo, h.db)
 	comment, err := l.AddComment(userId.(int64), &req)
 	if err != nil {
-		response.Error(c, response.ERROR, err.Error())
+		response.HandleError(c, err)
 		return
 	}
 
@@ -60,7 +60,7 @@ func (h *CommentHandler) GetCommentList(c *gin.Context) {
 	videoIdStr := c.Query("video_id")
 	videoId, err := strconv.ParseInt(videoIdStr, 10, 64)
 	if err != nil {
-		response.Error(c, response.INVALID_PARAM, "视频ID格式错误")
+		response.HandleError(c, err)
 		return
 	}
 
@@ -79,7 +79,7 @@ func (h *CommentHandler) GetCommentList(c *gin.Context) {
 	l := logic.NewCommentListLogic(c.Request.Context(), h.commentRepo)
 	resp, err := l.GetCommentList(req)
 	if err != nil {
-		response.Error(c, response.ERROR, err.Error())
+		response.HandleError(c, err)
 		return
 	}
 
@@ -98,13 +98,13 @@ func (h *CommentHandler) LikeComment(c *gin.Context) {
 	commentIdStr := c.Param("id")
 	commentId, err := strconv.ParseInt(commentIdStr, 10, 64)
 	if err != nil {
-		response.Error(c, response.INVALID_PARAM, "评论ID格式错误")
+		response.HandleError(c, err)
 		return
 	}
 
 	l := logic.NewLikeCommentLogic(c.Request.Context(), h.commentRepo)
 	if err := l.LikeComment(userId.(int64), commentId); err != nil {
-		response.Error(c, response.ERROR, err.Error())
+		response.HandleError(c, err)
 		return
 	}
 
@@ -123,13 +123,13 @@ func (h *CommentHandler) UnlikeComment(c *gin.Context) {
 	commentIdStr := c.Param("id")
 	commentId, err := strconv.ParseInt(commentIdStr, 10, 64)
 	if err != nil {
-		response.Error(c, response.INVALID_PARAM, "评论ID格式错误")
+		response.HandleError(c, err)
 		return
 	}
 
 	l := logic.NewLikeCommentLogic(c.Request.Context(), h.commentRepo)
 	if err := l.UnlikeComment(userId.(int64), commentId); err != nil {
-		response.Error(c, response.ERROR, err.Error())
+		response.HandleError(c, err)
 		return
 	}
 

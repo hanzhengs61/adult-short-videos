@@ -48,7 +48,7 @@ func (h *VideoHandler) GetVideoList(c *gin.Context) {
 	// 获取视频列表
 	resp, err := l.GetVideoList(req)
 	if err != nil {
-		response.Error(c, response.ERROR, err.Error())
+		response.HandleError(c, err)
 		return
 	}
 
@@ -65,7 +65,7 @@ func (h *VideoHandler) GetVideoDetail(c *gin.Context) {
 
 	videoId, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		response.Error(c, response.INVALID_PARAM, "视频 ID 格式错误")
+		response.HandleError(c, err)
 		return
 	}
 
@@ -73,7 +73,7 @@ func (h *VideoHandler) GetVideoDetail(c *gin.Context) {
 	// 获取视频详情
 	detail, err := l.GetVideoDetail(videoId)
 	if err != nil {
-		response.Error(c, response.ERROR, err.Error())
+		response.HandleError(c, err)
 		return
 	}
 
@@ -96,7 +96,7 @@ func (h *VideoHandler) GetHotVideos(c *gin.Context) {
 	// 查询热门视频
 	videos, err := h.videoRepo.GetHotVideos(c.Request.Context(), limit)
 	if err != nil {
-		response.Error(c, response.ERROR, "查询热门视频失败")
+		response.HandleError(c, err)
 		return
 	}
 

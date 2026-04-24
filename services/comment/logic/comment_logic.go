@@ -1,6 +1,7 @@
 package logic
 
 import (
+	"adult-short-videos/common/logger"
 	"context"
 	"errors"
 	"strings"
@@ -9,6 +10,7 @@ import (
 	"adult-short-videos/services/comment/repository"
 	videoRepo "adult-short-videos/services/video/repository"
 
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
@@ -41,10 +43,12 @@ func (l *AddCommentLogic) AddComment(userId int64, req *AddCommentReq) (*model.C
 
 	content := strings.TrimSpace(req.Content)
 	if content == "" {
+		logger.Error("评论内容不能为空")
 		return nil, errors.New("评论内容不能为空")
 	}
 
 	if len(content) > 500 {
+		logger.Error("评论内容不能超过500字")
 		return nil, errors.New("评论内容不能超过500字")
 	}
 
@@ -52,6 +56,7 @@ func (l *AddCommentLogic) AddComment(userId int64, req *AddCommentReq) (*model.C
 	_, err := l.videoRepo.FindByID(l.ctx, req.VideoId)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
+			logger.Error("视频不存在", zap.Error(err))
 			return nil, errors.New("视频不存在")
 		}
 		return nil, errors.New("查询视频失败")
@@ -67,6 +72,7 @@ func (l *AddCommentLogic) AddComment(userId int64, req *AddCommentReq) (*model.C
 	}
 
 	if err := l.commentRepo.Create(l.ctx, comment); err != nil {
+		logger.Error("发表评论失败", zap.Error(err))
 		return nil, errors.New("发表评论失败")
 	}
 
