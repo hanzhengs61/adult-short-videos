@@ -28,6 +28,7 @@ import (
 	videoModel "adult-short-videos/internal/service/video/model"
 
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
 	"golang.org/x/time/rate"
 	"gorm.io/driver/postgres"
@@ -208,10 +209,14 @@ func setupRouter(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	r := gin.New()
 
 	// ========== 全局中间件 ==========
-	// 日志中间件
+	// Request ID 中间件（必须第一个，后续中间件依赖此 ID）
+	r.Use(middleware.RequestID())
+	// 日志中间件（读取 request_id 字段）
 	r.Use(ginLogger())
 	// 恢复中间件
 	r.Use(gin.Recovery())
+	// HTTP 指标中间件（在 CORS/限流之前，确保 429 等响应也被统计）
+	r.Use(middleware.Metrics("/health", cfg.Metrics.Path))
 	// CORS 中间件
 	var corsOrigins []string
 	if cfg.Server.CORSOrigins != "" {
@@ -228,6 +233,12 @@ func setupRouter(cfg *config.Config, db *gorm.DB) *gin.Engine {
 
 	// ========== 健康检查 ==========
 	r.GET("/health", healthCheck(db))
+
+	// ========== Prometheus 指标端点 ==========
+	// 生产部署时通过网络策略（Nginx 反代 / 安全组）限制只对监控系统开放
+	if cfg.Metrics.Enabled {
+		r.GET(cfg.Metrics.Path, gin.WrapH(promhttp.Handler()))
+	}
 
 	// ========== 创建处理器 ==========
 	userHandler := handler.NewUserHandler(db, cfg.JWT.Secret, cfg.JWT.AccessExpire)
@@ -328,6 +339,7 @@ func ginLogger() gin.HandlerFunc {
 		cost := time.Since(start)
 
 		logger.Info("API请求",
+			zap.String("request_id", c.GetString(middleware.RequestIDKey)),
 			zap.Int("status", c.Writer.Status()),
 			zap.String("method", c.Request.Method),
 			zap.String("path", path),
@@ -477,7 +489,8 @@ func printStartupInfo(cfg *config.Config) {
 			group: "系统服务",
 			apis: []string{
 				"GET /health                  - 健康检查",
-				"GET /api/storage/proxy      - 代理播放",
+				"GET /api/storage/proxy       - 代理播放",
+				"GET /metrics                 - Prometheus 指标（仅监控系统访问）",
 			},
 		},
 	}

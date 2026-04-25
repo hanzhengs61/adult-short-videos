@@ -1,6 +1,7 @@
 package logic
 
 import (
+	"adult-short-videos/internal/pkg/metrics"
 	"adult-short-videos/internal/pkg/utils"
 	"adult-short-videos/internal/service/user/model"
 	"adult-short-videos/internal/service/user/repository"
@@ -59,6 +60,7 @@ func (l *LoginLogic) Login(req *LoginReq) (*LoginResp, error) {
 	if err != nil {
 		// 如果是"记录不存在"错误，说明用户名不存在
 		if errors.Is(err, gorm.ErrRecordNotFound) {
+			metrics.UserLoginsTotal.WithLabelValues("false").Inc()
 			return nil, errors.New("用户名或密码错误")
 		}
 		return nil, errors.New("数据库查询失败")
@@ -69,11 +71,13 @@ func (l *LoginLogic) Login(req *LoginReq) (*LoginResp, error) {
 	if !utils.PasswordVerify(user.Password, req.Password) {
 		// 记录登录失败日志
 		l.recordLoginLog(user.UserId, "password", false, "密码错误")
+		metrics.UserLoginsTotal.WithLabelValues("false").Inc()
 		return nil, errors.New("用户名或密码错误")
 	}
 
 	// 3: 检查账号状态
 	if user.Status != 1 {
+		metrics.UserLoginsTotal.WithLabelValues("false").Inc()
 		return nil, errors.New("账号已被禁用")
 	}
 
@@ -85,6 +89,7 @@ func (l *LoginLogic) Login(req *LoginReq) (*LoginResp, error) {
 
 	// 5: 记录登录成功日志
 	l.recordLoginLog(user.UserId, "password", true, "")
+	metrics.UserLoginsTotal.WithLabelValues("true").Inc()
 
 	// 6: 生成 JWT Token
 	accessToken, err := utils.GenerateToken(

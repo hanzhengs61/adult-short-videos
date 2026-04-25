@@ -3,6 +3,7 @@ package logic
 import (
 	"adult-short-videos/internal/pkg/errors"
 	"adult-short-videos/internal/pkg/logger"
+	"adult-short-videos/internal/pkg/metrics"
 	"adult-short-videos/internal/pkg/utils"
 	"adult-short-videos/internal/pkg/validator"
 	"adult-short-videos/internal/service/user/model"
@@ -142,6 +143,8 @@ func (l *RegisterLogic) Register(req *RegisterReq) (*RegisterResp, error) {
 		zap.Int64("user_id", user.UserId),
 		zap.String("username", user.Username),
 	)
+
+	metrics.UserRegistrationsTotal.Inc()
 
 	return &RegisterResp{
 		UserId:       user.UserId,

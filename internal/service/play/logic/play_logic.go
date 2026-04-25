@@ -1,6 +1,7 @@
 package logic
 
 import (
+	"adult-short-videos/internal/pkg/metrics"
 	"adult-short-videos/internal/service/play/model"
 	"adult-short-videos/internal/service/play/repository"
 	videoRepo "adult-short-videos/internal/service/video/repository"
@@ -75,7 +76,7 @@ func (l *RecordPlayLogic) RecordPlay(userId int64, req *RecordPlayReq) error {
 	// 异步更新用户统计
 	go func() {
 		l.db.Exec(`
-			UPDATE user_statistics 
+			UPDATE user_statistics
 			SET play_count = play_count + 1,
 				total_watch_time = total_watch_time + ?,
 				last_active_at = ?
@@ -83,6 +84,7 @@ func (l *RecordPlayLogic) RecordPlay(userId int64, req *RecordPlayReq) error {
 		`, req.PlayDuration, time.Now(), userId)
 	}()
 
+	metrics.VideoPlaysTotal.Inc()
 	return nil
 }
 

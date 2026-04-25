@@ -15,6 +15,7 @@ type Config struct {
 	JWT      JWTConfig      `yaml:"jwt"`
 	Redis    RedisConfig    `yaml:"redis"`
 	Log      LogConfig      `yaml:"log"`
+	Metrics  MetricsConfig  `yaml:"metrics"`
 }
 
 // ServerConfig 服务器配置
@@ -63,6 +64,12 @@ type LogConfig struct {
 	MaxAge     int    `yaml:"max_age"` // 天
 }
 
+// MetricsConfig Prometheus 指标配置
+type MetricsConfig struct {
+	Enabled bool   `yaml:"enabled"`
+	Path    string `yaml:"path"` // 默认 /metrics
+}
+
 // Load 加载配置文件
 func Load(path string) (*Config, error) {
 	// 读取配置文件
@@ -95,6 +102,9 @@ func Load(path string) (*Config, error) {
 	}
 	if config.Database.SSLMode == "" {
 		config.Database.SSLMode = "disable"
+	}
+	if config.Metrics.Path == "" {
+		config.Metrics.Path = "/metrics"
 	}
 
 	return &config, nil

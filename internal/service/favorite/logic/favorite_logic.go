@@ -1,6 +1,7 @@
 package logic
 
 import (
+	"adult-short-videos/internal/pkg/metrics"
 	"adult-short-videos/internal/service/favorite/model"
 	"adult-short-videos/internal/service/favorite/repository"
 	videoRepo "adult-short-videos/internal/service/video/repository"
@@ -82,6 +83,7 @@ func (l *AddFavoriteLogic) AddFavorite(userId int64, req *AddFavoriteReq) error 
 			UpdateColumn("favorite_count", gorm.Expr("favorite_count + ?", 1))
 	}()
 
+	metrics.FavoritesTotal.WithLabelValues("add").Inc()
 	return nil
 }
 
@@ -128,12 +130,13 @@ func (l *RemoveFavoriteLogic) RemoveFavorite(userId, videoId int64) error {
 	go func() {
 		// 注意：需要检查 favorite_count 不能小于 0
 		l.db.Exec(`
-			UPDATE videos 
-			SET favorite_count = GREATEST(favorite_count - 1, 0) 
+			UPDATE videos
+			SET favorite_count = GREATEST(favorite_count - 1, 0)
 			WHERE video_id = ?
 		`, videoId)
 	}()
 
+	metrics.FavoritesTotal.WithLabelValues("remove").Inc()
 	return nil
 }
 

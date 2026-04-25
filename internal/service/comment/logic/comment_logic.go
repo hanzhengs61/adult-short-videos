@@ -2,6 +2,7 @@ package logic
 
 import (
 	"adult-short-videos/internal/pkg/logger"
+	"adult-short-videos/internal/pkg/metrics"
 	"context"
 	"errors"
 	"strings"
@@ -83,6 +84,7 @@ func (l *AddCommentLogic) AddComment(userId int64, req *AddCommentReq) (*model.C
 			UpdateColumn("comment_count", gorm.Expr("comment_count + 1"))
 	}()
 
+	metrics.CommentsTotal.WithLabelValues("add").Inc()
 	return comment, nil
 }
 
@@ -178,6 +180,7 @@ func (l *LikeCommentLogic) LikeComment(userId, commentId int64) error {
 		l.commentRepo.IncrementLikeCount(context.Background(), commentId)
 	}()
 
+	metrics.CommentsTotal.WithLabelValues("like").Inc()
 	return nil
 }
 
@@ -203,5 +206,6 @@ func (l *LikeCommentLogic) UnlikeComment(userId, commentId int64) error {
 		l.commentRepo.DecrementLikeCount(context.Background(), commentId)
 	}()
 
+	metrics.CommentsTotal.WithLabelValues("unlike").Inc()
 	return nil
 }

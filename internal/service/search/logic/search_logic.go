@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"adult-short-videos/internal/pkg/metrics"
 	"adult-short-videos/internal/service/search/repository"
 	videoModel "adult-short-videos/internal/service/video/model"
 
@@ -72,6 +73,7 @@ func (l *SearchLogic) Search(req *SearchReq) (*SearchResp, error) {
 		req.Size = 100
 	}
 
+	metrics.SearchRequestsTotal.WithLabelValues("video").Inc()
 	offset := (req.Page - 1) * req.Size
 
 	videos, total, err := l.searchRepo.SearchVideos(l.ctx, req.Keyword, offset, req.Size)
@@ -152,6 +154,7 @@ func (l *ActorSearchLogic) SearchActors(req *SearchReq) (*ActorSearchResp, error
 		req.Size = 100
 	}
 
+	metrics.SearchRequestsTotal.WithLabelValues("actor").Inc()
 	offset := (req.Page - 1) * req.Size
 
 	actors, total, err := l.searchRepo.SearchActors(l.ctx, req.Keyword, offset, req.Size)
@@ -202,6 +205,7 @@ func (l *FanhaoSearchLogic) SearchByFanhao(req SearchFanhaoReq) (*videoModel.Vid
 		return nil, errors.New("番号不能为空")
 	}
 
+	metrics.SearchRequestsTotal.WithLabelValues("fanhao").Inc()
 	video, err := l.searchRepo.SearchByFanhao(l.ctx, req.Fanhao)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -253,6 +257,7 @@ func (l *AdvancedSearchLogic) AdvancedSearch(req *AdvancedSearchReq) (*SearchRes
 		req.Size = 100
 	}
 
+	metrics.SearchRequestsTotal.WithLabelValues("advanced").Inc()
 	offset := (req.Page - 1) * req.Size
 
 	// 构建过滤条件
