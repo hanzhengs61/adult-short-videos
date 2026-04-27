@@ -1,0 +1,233 @@
+<template>
+  <div class="max-w-screen-2xl mx-auto px-3 sm:px-4 py-4">
+
+    <!-- 搜索结果 -->
+    <div v-if="searchResults.length" class="animate-slide-up">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="section-title">
+          <span class="w-1 h-4 bg-gradient-primary rounded-full inline-block"></span>
+          搜索：<span class="text-primary">{{ currentQuery }}</span>
+        </h2>
+        <button @click="clearSearch" class="text-xs text-text-muted hover:text-primary transition-colors">清除</button>
+      </div>
+      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3 mb-6">
+        <VideoCard v-for="v in searchResults" :key="v.video_id" :video="v" />
+      </div>
+    </div>
+
+    <!-- 探索内容（无搜索时） -->
+    <template v-else>
+      <!-- 最近搜索 -->
+      <div v-if="exploreStore.history.length" class="mb-6">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="section-title text-sm">
+            <svg class="w-4 h-4 text-text-muted" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            最近搜索
+          </h2>
+          <button @click="exploreStore.clearHistory()"
+            class="text-xs text-text-muted hover:text-red-400 transition-colors">全部清除</button>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button v-for="h in exploreStore.history" :key="h"
+            class="group flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-bg-surface border border-border
+                   text-text-secondary text-xs hover:border-primary/50 hover:text-primary transition-all">
+            <span @click="quickSearch(h)">{{ h }}</span>
+            <span @click.stop="exploreStore.removeHistory(h)"
+              class="text-text-muted group-hover:text-primary/70 hover:text-red-400! transition-colors leading-none">×</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 热搜榜 -->
+      <div class="mb-6">
+        <h2 class="section-title text-sm mb-3">
+          <svg class="w-4 h-4 text-primary" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"/>
+          </svg>
+          热搜关键词
+        </h2>
+        <div class="flex flex-wrap gap-2">
+          <button v-for="(k, i) in hotKeywords" :key="k" @click="quickSearch(k)"
+            :class="['flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs border transition-all',
+              i < 3
+                ? 'bg-primary/10 border-primary/30 text-primary hover:bg-primary/20'
+                : 'bg-bg-surface border-border text-text-secondary hover:border-border-light hover:text-text-primary']">
+            <span :class="['font-bold text-[10px] w-3.5 text-center',
+              i === 0 ? 'text-red-400' : i === 1 ? 'text-orange-400' : i === 2 ? 'text-yellow-400' : 'text-text-muted']">
+              {{ i + 1 }}
+            </span>
+            {{ k }}
+            <span v-if="i < 3" class="text-[9px] text-primary font-semibold">HOT</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 广告位 -->
+      <div class="mb-6 rounded-xl border border-border/40 bg-bg-surface/60 h-12
+                  flex items-center justify-center text-text-muted text-xs tracking-widest">
+        AD · 广告位
+      </div>
+
+      <!-- 推荐创作者（演员） -->
+      <div class="mb-6">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="section-title text-sm">
+            <svg class="w-4 h-4 text-text-muted" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+            </svg>
+            推荐创作者
+          </h2>
+        </div>
+
+        <!-- 横滑创作者卡片 -->
+        <div class="flex gap-3 overflow-x-auto scrollbar-none pb-3 snap-x snap-mandatory -mx-3 px-3">
+          <div v-for="actor in actors" :key="actor.actor_id"
+            class="snap-start shrink-0 w-44 bg-bg-surface border border-border rounded-xl overflow-hidden
+                   hover:border-primary/30 hover:shadow-card-hover transition-all duration-300 cursor-pointer group"
+            @click="quickSearch(actor.name)">
+
+            <!-- 创作者头像 -->
+            <div class="p-3 flex items-center gap-2.5 border-b border-border/50">
+              <div class="w-9 h-9 rounded-full bg-gradient-primary flex items-center justify-center
+                          text-white font-bold text-sm shrink-0 group-hover:shadow-glow transition-shadow">
+                {{ actor.name[0] }}
+              </div>
+              <div class="min-w-0">
+                <p class="text-xs font-semibold text-text-primary truncate group-hover:text-primary transition-colors">
+                  {{ actor.name }}
+                </p>
+                <p class="text-[10px] text-text-muted">创作者</p>
+              </div>
+            </div>
+
+            <!-- 视频预览缩略图（3宫格） -->
+            <div class="grid grid-cols-3 gap-0.5 p-0.5">
+              <div v-for="v in (actor.videos || []).slice(0,3)" :key="v?.video_id"
+                class="aspect-square bg-bg-hover overflow-hidden">
+                <img v-if="v?.cover_url" :src="v.cover_url"
+                  class="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
+                  loading="lazy" @error="e => e.target.style.display='none'" />
+                <div v-else class="w-full h-full bg-bg-hover flex items-center justify-center">
+                  <svg class="w-4 h-4 text-text-muted" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M8 5v14l11-7z"/>
+                  </svg>
+                </div>
+              </div>
+              <div v-for="i in Math.max(0, 3-(actor.videos||[]).length)" :key="`empty${i}`"
+                class="aspect-square bg-bg-hover"></div>
+            </div>
+
+            <div class="px-3 py-2">
+              <p class="text-[10px] text-text-muted">点击查看全部作品</p>
+            </div>
+          </div>
+
+          <!-- 骨架 -->
+          <template v-if="actorsLoading">
+            <div v-for="i in 5" :key="`ask${i}`"
+              class="snap-start shrink-0 w-44 bg-bg-surface border border-border rounded-xl overflow-hidden animate-pulse">
+              <div class="h-14 bg-bg-hover"></div>
+              <div class="grid grid-cols-3 gap-0.5 p-0.5">
+                <div v-for="j in 3" :key="j" class="aspect-square bg-bg-hover"></div>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <!-- 热门标签 -->
+      <div>
+        <h2 class="section-title text-sm mb-3">
+          <svg class="w-4 h-4 text-text-muted" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+          </svg>
+          热门标签
+        </h2>
+        <div class="flex flex-wrap gap-2">
+          <button v-for="tag in popularTags" :key="tag" @click="quickSearch(tag)"
+            class="tag hover:border-primary/40 hover:text-primary">{{ tag }}</button>
+        </div>
+      </div>
+    </template>
+  </div>
+</template>
+
+<script setup>
+import { ref, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import VideoCard from '@/components/common/VideoCard.vue'
+import { useExploreStore } from '@/stores/explore'
+import { searchApi } from '@/api'
+
+const route = useRoute()
+const router = useRouter()
+const exploreStore = useExploreStore()
+const searchInput = ref('')
+const currentQuery = ref('')
+const searchResults = ref([])
+const actors = ref([])
+const actorsLoading = ref(true)
+
+const hotKeywords = ['中文字幕', '无码', '人妻', '美乳', '国产自拍', '制服诱惑', '美少女', '素人', '4K高清', '巨乳']
+const popularTags = ['剧情', '偷拍', '户外', '露出', '角色扮演', '痴女', '教师', '护士', '女友', '熟女', '黑丝', '泳装']
+
+async function doSearch() {
+  const q = searchInput.value.trim()
+  if (!q) return
+  currentQuery.value = q
+  exploreStore.addHistory(q)
+  try {
+    const res = await searchApi.videos({ keyword: q, page: 1, page_size: 20 })
+    searchResults.value = res.data?.list || []
+  } catch { searchResults.value = [] }
+}
+
+function quickSearch(q) {
+  searchInput.value = q
+  doSearch()
+}
+
+function clearSearch() {
+  searchInput.value = ''
+  currentQuery.value = ''
+  searchResults.value = []
+  router.replace({ path: '/explore', query: {} })
+}
+
+async function fetchActors() {
+  actorsLoading.value = true
+  try {
+    const res = await searchApi.videos({ keyword: '', page: 1, page_size: 10 })
+    const videos = res.data?.list || []
+    const actorMap = new Map()
+    videos.forEach(v => {
+      v.actors?.forEach(a => {
+        if (!actorMap.has(a.actor_id)) actorMap.set(a.actor_id, { ...a, videos: [] })
+        actorMap.get(a.actor_id).videos.push(v)
+      })
+    })
+    actors.value = [...actorMap.values()].slice(0, 10)
+    if (!actors.value.length) {
+      actors.value = hotKeywords.slice(0, 8).map((name, i) => ({ actor_id: i, name, videos: [] }))
+    }
+  } catch {
+    actors.value = hotKeywords.slice(0, 8).map((name, i) => ({ actor_id: i, name, videos: [] }))
+  }
+  actorsLoading.value = false
+}
+
+// 响应 NavBar 搜索跳转过来的 query
+watch(() => route.query.q, (newQ) => {
+  if (newQ) {
+    searchInput.value = String(newQ)
+    doSearch()
+  }
+}, { immediate: true })
+
+onMounted(fetchActors)
+</script>

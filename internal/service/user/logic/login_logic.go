@@ -33,8 +33,10 @@ func NewLoginLogic(ctx context.Context, userRepo repository.UserRepository, jwtS
 
 // LoginReq 登录请求参数
 type LoginReq struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
+	Username  string `json:"username"`
+	Password  string `json:"password"`
+	ClientIP  string `json:"-"`
+	UserAgent string `json:"-"`
 }
 
 // LoginResp 登录响应
@@ -70,7 +72,7 @@ func (l *LoginLogic) Login(req *LoginReq) (*LoginResp, error) {
 	// 使用 bcrypt 比对密码
 	if !utils.PasswordVerify(user.Password, req.Password) {
 		// 记录登录失败日志
-		l.recordLoginLog(user.UserId, "password", false, "密码错误")
+		l.recordLoginLog(user.UserId, "password", false, "密码错误", req.ClientIP, req.UserAgent)
 		metrics.UserLoginsTotal.WithLabelValues("false").Inc()
 		return nil, errors.New("用户名或密码错误")
 	}
@@ -82,13 +84,12 @@ func (l *LoginLogic) Login(req *LoginReq) (*LoginResp, error) {
 	}
 
 	// 4: 更新最后登录信息
-	// TODO: 应从请求中获取真实 IP
-	if err := l.userRepo.UpdateLastLogin(l.ctx, user.UserId, "127.0.0.1"); err != nil {
-		// 非致命错误，记录日志即可
+	if err := l.userRepo.UpdateLastLogin(l.ctx, user.UserId, req.ClientIP); err != nil {
+		// 非致命错误，忽略
 	}
 
 	// 5: 记录登录成功日志
-	l.recordLoginLog(user.UserId, "password", true, "")
+	l.recordLoginLog(user.UserId, "password", true, "", req.ClientIP, req.UserAgent)
 	metrics.UserLoginsTotal.WithLabelValues("true").Inc()
 
 	// 6: 生成 JWT Token
@@ -121,21 +122,18 @@ func (l *LoginLogic) Login(req *LoginReq) (*LoginResp, error) {
 	}, nil
 }
 
-// recordLoginLog 记录登录日志
-// 这个方法异步执行，不影响登录流程
-func (l *LoginLogic) recordLoginLog(userId int64, loginType string, success bool, failReason string) {
-	// 确定状态
-	status := int32(1) // 成功
+func (l *LoginLogic) recordLoginLog(userId int64, loginType string, success bool, failReason, clientIP, userAgent string) {
+	status := int32(1)
 	if !success {
-		status = 0 // 失败
+		status = 0
 	}
 
 	// 创建登录日志记录
 	loginLog := &model.LoginLog{
 		UserId:     userId,
 		LoginType:  loginType,
-		LoginIp:    "127.0.0.1", // TODO: 获取真实 IP
-		UserAgent:  "",          // TODO: 获取 User-Agent
+		LoginIp:    clientIP,
+		UserAgent:  userAgent,
 		Status:     status,
 		FailReason: failReason,
 	}

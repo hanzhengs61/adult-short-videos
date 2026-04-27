@@ -1,0 +1,91 @@
+<template>
+  <nav class="fixed bottom-0 left-0 right-0 z-40 md:hidden border-t border-border/50"
+       style="background:rgba(13,13,15,0.96);backdrop-filter:blur(20px)">
+    <div class="flex items-stretch" style="padding-bottom:env(safe-area-inset-bottom)">
+      <button v-for="item in navItems" :key="item.to"
+        @click="handleNav(item)"
+        :class="['flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 transition-all relative',
+          isActive(item) ? 'text-primary' : 'text-text-muted']">
+
+        <!-- 活跃背景光晕 -->
+        <span v-if="isActive(item)"
+          class="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-gradient-primary rounded-b-full"></span>
+
+        <!-- 图标（活跃时 filled，否则 outline） -->
+        <span class="relative">
+          <svg class="w-6 h-6 transition-transform" :class="isActive(item) ? 'scale-110' : ''"
+               :fill="isActive(item) ? 'currentColor' : 'none'"
+               stroke="currentColor" :stroke-width="isActive(item) ? '0' : '1.8'"
+               stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+            <path :d="isActive(item) ? item.iconFill : item.iconOutline" />
+          </svg>
+          <!-- 角标（订阅有新内容）-->
+          <span v-if="item.badge"
+            class="absolute -top-1 -right-1.5 min-w-[14px] h-3.5 px-0.5 rounded-full
+                   bg-primary text-white text-[9px] font-bold flex items-center justify-center">
+            {{ item.badge }}
+          </span>
+        </span>
+
+        <span :class="['text-[10px] font-semibold leading-none transition-colors',
+          isActive(item) ? 'text-primary' : 'text-text-muted']">
+          {{ item.label }}
+        </span>
+      </button>
+    </div>
+  </nav>
+  <!-- 占位 -->
+  <div class="h-16 md:hidden" style="padding-bottom:env(safe-area-inset-bottom)"></div>
+</template>
+
+<script setup>
+import { computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useUserStore } from '@/stores/user'
+
+const route = useRoute()
+const router = useRouter()
+const userStore = useUserStore()
+
+// 每个 Tab 的 filled 和 outline SVG path
+const navItems = computed(() => [
+  {
+    label: '首页', to: '/',
+    iconOutline: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6',
+    iconFill: 'M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z',
+  },
+  {
+    label: '订阅', to: '/subscribe',
+    iconOutline: 'M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z',
+    iconFill: 'M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z',
+  },
+  {
+    label: '探索', to: '/explore',
+    iconOutline: 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z',
+    iconFill: 'M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z',
+  },
+  {
+    label: '榜单', to: '/rankings',
+    iconOutline: 'M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z',
+    iconFill: 'M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z',
+  },
+  {
+    label: '我的', to: '/profile',
+    iconOutline: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z',
+    iconFill: 'M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z',
+  },
+])
+
+function isActive(item) {
+  if (item.to === '/') return route.path === '/'
+  return route.path.startsWith(item.to)
+}
+
+function handleNav(item) {
+  if (item.to === '/profile' && !userStore.isLoggedIn) {
+    userStore.openAuth('login')
+    return
+  }
+  router.push(item.to)
+}
+</script>

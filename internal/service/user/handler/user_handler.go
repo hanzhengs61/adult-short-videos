@@ -111,6 +111,9 @@ func (h *UserHandler) Login(c *gin.Context) {
 	}
 
 	// 3: 调用业务逻辑
+	req.ClientIP = c.ClientIP()
+	req.UserAgent = c.Request.UserAgent()
+
 	l := logic.NewLoginLogic(
 		c.Request.Context(),
 		h.userRepo,

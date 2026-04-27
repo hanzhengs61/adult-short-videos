@@ -84,22 +84,40 @@ func Load(path string) (*Config, error) {
 		return nil, fmt.Errorf("解析配置文件失败: %v", err)
 	}
 
-	// 环境变量覆盖（生产环境安全）
-	if dbPassword := os.Getenv("DB_PASSWORD"); dbPassword != "" {
-		config.Database.Password = dbPassword
+	// 环境变量覆盖（生产环境安全，docker-compose / K8s 通过此机制注入密钥）
+	overrideString := func(target *string, key string) {
+		if v := os.Getenv(key); v != "" {
+			*target = v
+		}
 	}
-	if jwtSecret := os.Getenv("JWT_SECRET"); jwtSecret != "" {
-		config.JWT.Secret = jwtSecret
+	overrideInt := func(target *int, key string) {
+		if v := os.Getenv(key); v != "" {
+			if n, err := fmt.Sscanf(v, "%d", target); n != 1 || err != nil {
+				// 格式不合法时保留原值
+			}
+		}
 	}
-	if redisPassword := os.Getenv("REDIS_PASSWORD"); redisPassword != "" {
-		config.Redis.Password = redisPassword
-	}
-	if corsOrigins := os.Getenv("CORS_ALLOWED_ORIGINS"); corsOrigins != "" {
-		config.Server.CORSOrigins = corsOrigins
-	}
-	if sslMode := os.Getenv("DB_SSL_MODE"); sslMode != "" {
-		config.Database.SSLMode = sslMode
-	}
+
+	// 数据库
+	overrideString(&config.Database.Host, "DB_HOST")
+	overrideInt(&config.Database.Port, "DB_PORT")
+	overrideString(&config.Database.User, "DB_USER")
+	overrideString(&config.Database.Password, "DB_PASSWORD")
+	overrideString(&config.Database.DBName, "DB_NAME")
+	overrideString(&config.Database.SSLMode, "DB_SSL_MODE")
+
+	// Redis
+	overrideString(&config.Redis.Host, "REDIS_HOST")
+	overrideInt(&config.Redis.Port, "REDIS_PORT")
+	overrideString(&config.Redis.Password, "REDIS_PASSWORD")
+
+	// JWT
+	overrideString(&config.JWT.Secret, "JWT_SECRET")
+
+	// 服务器
+	overrideString(&config.Server.Mode, "SERVER_MODE")
+	overrideString(&config.Server.CORSOrigins, "CORS_ORIGINS")
+
 	if config.Database.SSLMode == "" {
 		config.Database.SSLMode = "disable"
 	}

@@ -34,8 +34,10 @@ func New(cfg *config.Config, db *gorm.DB) *http.Server {
 	r := buildRouter(cfg, db)
 
 	return &http.Server{
-		Addr:    cfg.Server.Port,
-		Handler: r,
+		Addr:         cfg.Server.Port,
+		Handler:      r,
+		ReadTimeout:  cfg.Server.ReadTimeout,
+		WriteTimeout: cfg.Server.WriteTimeout,
 	}
 }
 
