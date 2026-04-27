@@ -19,7 +19,6 @@
               {{ s.label }}
             </button>
           </div>
-          <div class="w-px h-4 bg-border mx-1 shrink-0"></div>
           <button v-for="r in regions" :key="r.value" @click="setRegion(r.value)"
                   :class="['shrink-0 px-3 py-1.5 rounded-full text-xs border transition-all',
               activeRegion===r.value
