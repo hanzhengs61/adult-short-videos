@@ -15,6 +15,7 @@ func RegisterRoutes(rg *gin.RouterGroup, db *gorm.DB, jwtSecret string) {
 	auth := g.Group("")
 	auth.Use(middleware.AuthMiddleware(jwtSecret))
 	auth.POST("/add", h.AddComment)
-	auth.POST("/like/:id", h.LikeComment)
+	auth.POST("/like", h.LikeComment)
 	auth.DELETE("/like/:id", h.UnlikeComment)
+	auth.DELETE("/delete/:id", h.DeleteComment)
 }

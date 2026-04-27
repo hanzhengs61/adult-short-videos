@@ -11,4 +11,5 @@ func RegisterRoutes(rg *gin.RouterGroup, db *gorm.DB) {
 	g.GET("/list", h.GetVideoList)
 	g.GET("/detail/:id", h.GetVideoDetail)
 	g.GET("/hot", h.GetHotVideos)
+	g.GET("/popular", h.GetHotVideos)
 }

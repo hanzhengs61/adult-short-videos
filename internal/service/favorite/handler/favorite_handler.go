@@ -67,7 +67,7 @@ func (h *FavoriteHandler) AddFavorite(c *gin.Context) {
 }
 
 // RemoveFavorite 取消收藏
-// 路由: DELETE /api/favorite/remove/:videoId
+// 路由: DELETE /api/favorite/remove
 // 需要认证
 func (h *FavoriteHandler) RemoveFavorite(c *gin.Context) {
 	// 获取用户 ID
@@ -77,13 +77,14 @@ func (h *FavoriteHandler) RemoveFavorite(c *gin.Context) {
 		return
 	}
 
-	// 获取视频 ID
-	videoIdStr := c.Param("videoId")
-	videoId, err := strconv.ParseInt(videoIdStr, 10, 64)
-	if err != nil {
-		response.HandleError(c, err)
+	var body struct {
+		VideoId int64 `json:"video_id"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.VideoId <= 0 {
+		response.Error(c, errors.CodeInvalidParam, "视频 ID 无效")
 		return
 	}
+	videoId := body.VideoId
 
 	l := logic.NewRemoveFavoriteLogic(
 		c.Request.Context(),
@@ -138,7 +139,7 @@ func (h *FavoriteHandler) GetFavoriteList(c *gin.Context) {
 }
 
 // CheckFavorite 检查是否已收藏
-// 路由: GET /api/favorite/check/:videoId
+// 路由: GET /api/favorite/check?video_id=
 // 需要认证
 func (h *FavoriteHandler) CheckFavorite(c *gin.Context) {
 	// 获取用户ID
@@ -148,11 +149,9 @@ func (h *FavoriteHandler) CheckFavorite(c *gin.Context) {
 		return
 	}
 
-	// 获取视频ID
-	videoIdStr := c.Param("videoId")
-	videoId, err := strconv.ParseInt(videoIdStr, 10, 64)
-	if err != nil {
-		response.HandleError(c, err)
+	videoId, err := strconv.ParseInt(c.Query("video_id"), 10, 64)
+	if err != nil || videoId <= 0 {
+		response.Error(c, errors.CodeInvalidParam, "视频 ID 无效")
 		return
 	}
 

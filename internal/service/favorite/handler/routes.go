@@ -12,7 +12,7 @@ func RegisterRoutes(rg *gin.RouterGroup, db *gorm.DB, jwtSecret string) {
 	g := rg.Group("/favorite")
 	g.Use(middleware.AuthMiddleware(jwtSecret))
 	g.POST("/add", h.AddFavorite)
-	g.DELETE("/remove/:videoId", h.RemoveFavorite)
+	g.DELETE("/remove", h.RemoveFavorite)
 	g.GET("/list", h.GetFavoriteList)
-	g.GET("/check/:videoId", h.CheckFavorite)
+	g.GET("/check", h.CheckFavorite)
 }
