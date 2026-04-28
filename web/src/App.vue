@@ -1,15 +1,15 @@
 <template>
-  <NavBar/>
-  <main class="min-h-screen">
+  <NavBar v-if="!isFeed"/>
+  <main class="min-h-screen relative">
     <router-view v-slot="{ Component }">
-      <transition name="fade" mode="out-in">
-        <component :is="Component"/>
+      <transition name="fade">
+        <component :is="Component" :key="$route.path"/>
       </transition>
     </router-view>
   </main>
 
-  <!-- 底部 Footer（桌面端） -->
-  <footer class="hidden md:block border-t border-border mt-16">
+  <!-- 底部 Footer（桌面端，Feed 页隐藏） -->
+  <footer v-if="!isFeed" class="hidden md:block border-t border-border mt-16">
     <div class="max-w-screen-2xl mx-auto px-4 py-10">
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-8 mb-8">
         <!-- 品牌 -->
@@ -54,34 +54,37 @@
     </div>
   </footer>
 
-  <!-- 移动端底部导航 -->
-  <BottomNav/>
+  <!-- 移动端底部导航（Feed 页隐藏） -->
+  <BottomNav v-if="!isFeed"/>
 
   <!-- 全局登录/注册弹窗 -->
   <AuthModal/>
 </template>
 
 <script setup>
+import { computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import NavBar from '@/components/common/NavBar.vue'
 import BottomNav from '@/components/common/BottomNav.vue'
 import AuthModal from '@/components/common/AuthModal.vue'
-import {useUserStore} from '@/stores/user'
-import {onMounted} from 'vue'
+import { useUserStore } from '@/stores/user'
 
 const userStore = useUserStore()
+const route = useRoute()
+const isFeed = computed(() => route.path === '/feed')
 
 const footerLinks = {
   discover: [
-    {label: '首页', to: '/'},
-    {label: '探索', to: '/explore'},
-    {label: '榜单', to: '/rankings'},
-    {label: '订阅', to: '/subscribe'},
+    { label: '首页', to: '/' },
+    { label: '探索', to: '/explore' },
+    { label: '榜单', to: '/rankings' },
+    { label: '订阅', to: '/subscribe' },
   ],
   account: [
-    {label: '登录', action: () => userStore.openAuth('login')},
-    {label: '注册', action: () => userStore.openAuth('register')},
-    {label: '我的收藏', action: () => userStore.openAuth('login')},
-    {label: '个人主页', action: () => userStore.openAuth('login')},
+    { label: '登录', action: () => userStore.openAuth('login') },
+    { label: '注册', action: () => userStore.openAuth('register') },
+    { label: '我的收藏', action: () => userStore.openAuth('login') },
+    { label: '个人主页', action: () => userStore.openAuth('login') },
   ],
   about: ['关于我们', '联系客服', '隐私政策', '使用条款'],
 }
@@ -93,8 +96,13 @@ onMounted(() => userStore.fetchInfo())
 .fade-enter-active, .fade-leave-active {
   transition: opacity 0.15s ease;
 }
-
 .fade-enter-from, .fade-leave-to {
   opacity: 0;
+}
+/* 离场时脱离文档流（并发模式下不撑高布局）并禁用点击 */
+.fade-leave-active {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  pointer-events: none;
 }
 </style>

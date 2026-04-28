@@ -7,6 +7,7 @@ const routes = [
     {path: '/rankings', component: () => import('@/views/RankingsView.vue')},
     {path: '/profile', component: () => import('@/views/ProfileView.vue')},
     {path: '/video/:id', component: () => import('@/views/VideoDetail.vue')},
+    {path: '/feed', component: () => import('@/views/FeedView.vue')},
 ]
 
 const router = createRouter({

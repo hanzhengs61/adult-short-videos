@@ -1,7 +1,7 @@
 <template>
-  <router-link :to="`/video/${video.video_id}`"
-               class="group block rounded-xl overflow-hidden bg-bg-card border border-border
-           hover:border-primary/30 hover:shadow-card-hover transition-all duration-300 hover:-translate-y-0.5">
+  <div @click="goFeed"
+       class="group block rounded-xl overflow-hidden bg-bg-card border border-border
+           hover:border-primary/30 hover:shadow-card-hover transition-all duration-300 hover:-translate-y-0.5 cursor-pointer">
     <!-- 缩略图 -->
     <div class="relative aspect-video overflow-hidden bg-bg-surface">
       <img :src="video.cover_url || video.thumbnail" :alt="video.title"
@@ -50,11 +50,16 @@
         <span>{{ formatDate(video.created_at) }}</span>
       </div>
     </div>
-  </router-link>
+  </div>
 </template>
 
 <script setup>
-defineProps({video: {type: Object, required: true}})
+import { useRouter } from 'vue-router'
+const props = defineProps({video: {type: Object, required: true}})
+const router = useRouter()
+function goFeed() {
+  router.push({ path: '/feed', query: { id: props.video.video_id } })
+}
 
 function formatDuration(s) {
   if (!s) return ''

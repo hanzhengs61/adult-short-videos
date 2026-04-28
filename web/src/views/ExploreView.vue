@@ -200,6 +200,13 @@ import { searchApi, userApi } from '@/api'
 const route = useRoute()
 const router = useRouter()
 const exploreStore = useExploreStore()
+const searchInput = ref('')
+const currentQuery = ref('')
+const searchResults = ref([])
+const searchSort = ref('created_at')
+const searching = ref(false)
+const actors = ref([])
+const actorsLoading = ref(true)
 
 useHead(computed(() => ({
   title: currentQuery.value
@@ -211,13 +218,6 @@ useHead(computed(() => ({
         : '探索热门关键词、热搜榜、推荐创作者，发现更多精彩内容。' },
   ],
 })))
-const searchInput = ref('')
-const currentQuery = ref('')
-const searchResults = ref([])
-const searchSort = ref('created_at')
-const searching = ref(false)
-const actors = ref([])
-const actorsLoading = ref(true)
 
 const sortedResults = computed(() => {
   const arr = [...searchResults.value]
