@@ -8,7 +8,7 @@
     <!-- 发表评论 -->
     <div v-if="userStore.isLoggedIn" class="mb-6">
       <textarea v-model="content" rows="3" placeholder="发表你的看法..."
-        class="input-base resize-none mb-2"></textarea>
+                class="input-base resize-none mb-2"></textarea>
       <div class="flex justify-end">
         <button @click="submitComment" :disabled="!content.trim()" class="btn-primary text-sm px-4 py-2
           disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-none">
@@ -17,13 +17,14 @@
       </div>
     </div>
     <div v-else class="mb-6 p-4 rounded-lg bg-bg-surface border border-border text-center text-sm text-text-muted">
-      <router-link to="/login" class="text-primary hover:underline">登录</router-link> 后参与评论
+      <router-link to="/login" class="text-primary hover:underline">登录</router-link>
+      后参与评论
     </div>
 
     <!-- 评论列表 -->
     <div class="space-y-4">
       <div v-for="c in comments" :key="c.comment_id"
-        class="flex gap-3 p-4 rounded-xl bg-bg-surface border border-border/50">
+           class="flex gap-3 p-4 rounded-xl bg-bg-surface border border-border/50">
         <div class="w-8 h-8 rounded-full bg-gradient-primary flex items-center justify-center
                     text-white text-sm font-bold shrink-0">
           {{ c.username?.[0]?.toUpperCase() || 'U' }}
@@ -35,10 +36,11 @@
           </div>
           <p class="text-sm text-text-secondary leading-relaxed">{{ c.content }}</p>
           <div class="flex items-center gap-3 mt-2">
-            <button @click="likeComment(c)" class="flex items-center gap-1 text-xs text-text-muted hover:text-primary transition-colors">
+            <button @click="likeComment(c)"
+                    class="flex items-center gap-1 text-xs text-text-muted hover:text-primary transition-colors">
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905a3.61 3.61 0 01-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5"/>
+                      d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905a3.61 3.61 0 01-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5"/>
               </svg>
               {{ c.like_count || 0 }}
             </button>
@@ -50,17 +52,17 @@
       </div>
     </div>
 
-    <Pagination v-if="totalPages > 1" :current="page" :total-pages="totalPages" @change="changePage" />
+    <Pagination v-if="totalPages > 1" :current="page" :total-pages="totalPages" @change="changePage"/>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
-import { commentApi } from '@/api'
-import { useUserStore } from '@/stores/user'
+import {onMounted, ref, watch} from 'vue'
+import {commentApi} from '@/api'
+import {useUserStore} from '@/stores/user'
 import Pagination from './Pagination.vue'
 
-const props = defineProps({ videoId: { type: Number, required: true } })
+const props = defineProps({videoId: {type: Number, required: true}})
 const userStore = useUserStore()
 
 const comments = ref([])
@@ -73,21 +75,23 @@ const loading = ref(false)
 async function fetchComments() {
   loading.value = true
   try {
-    const res = await commentApi.list({ video_id: props.videoId, page: page.value, page_size: 20 })
-    comments.value = res.data?.list || []
+    const res = await commentApi.list({video_id: props.videoId, page: page.value, page_size: 20})
+    comments.value = res.data?.comments || []
     total.value = res.data?.total || 0
-    totalPages.value = res.data?.total_pages || 1
-  } catch {}
+    totalPages.value = Math.ceil((res.data?.total || 0) / 20) || 1
+  } catch {
+  }
   loading.value = false
 }
 
 async function submitComment() {
   if (!content.value.trim()) return
   try {
-    await commentApi.add({ video_id: props.videoId, content: content.value.trim() })
+    await commentApi.add({video_id: props.videoId, content: content.value.trim()})
     content.value = ''
     fetchComments()
-  } catch {}
+  } catch {
+  }
 }
 
 async function likeComment(c) {
@@ -95,10 +99,13 @@ async function likeComment(c) {
   try {
     await commentApi.like(c.comment_id)
     c.like_count = (c.like_count || 0) + 1
-  } catch {}
+  } catch {
+  }
 }
 
-function changePage(p) { page.value = p }
+function changePage(p) {
+  page.value = p
+}
 
 function formatDate(t) {
   if (!t) return ''
@@ -110,7 +117,10 @@ function formatDate(t) {
   return `${Math.floor(diff / 86400)}天前`
 }
 
-watch(() => props.videoId, () => { page.value = 1; fetchComments() })
+watch(() => props.videoId, () => {
+  page.value = 1;
+  fetchComments()
+})
 watch(page, fetchComments)
 onMounted(fetchComments)
 </script>

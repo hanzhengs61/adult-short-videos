@@ -6,7 +6,7 @@
       <!-- 短/长视频切换 -->
       <div class="flex bg-bg-surface border border-border rounded-xl p-1 gap-1">
         <button v-for="t in types" :key="t.value" @click="activeType = t.value"
-          :class="['px-4 py-1.5 rounded-lg text-xs font-semibold transition-all',
+                :class="['px-4 py-1.5 rounded-lg text-xs font-semibold transition-all',
             activeType===t.value ? 'bg-gradient-primary text-white' : 'text-text-muted hover:text-text-primary']">
           {{ t.label }}
         </button>
@@ -15,7 +15,7 @@
       <!-- 日/周/月 -->
       <div class="flex gap-1.5">
         <button v-for="p in periods" :key="p.value" @click="activePeriod = p.value"
-          :class="['px-3.5 py-1.5 rounded-full text-xs border font-medium transition-all',
+                :class="['px-3.5 py-1.5 rounded-full text-xs border font-medium transition-all',
             activePeriod===p.value
               ? 'border-primary/60 text-primary bg-primary/10'
               : 'border-border text-text-muted hover:border-border-light hover:text-text-primary']">
@@ -39,27 +39,30 @@
       <!-- TOP 3 大卡片 -->
       <div class="grid grid-cols-3 gap-3 mb-6">
         <div v-for="(v, i) in videos.slice(0,3)" :key="v.video_id"
-          :class="['relative rounded-xl overflow-hidden border cursor-pointer group transition-all hover:-translate-y-0.5',
+             :class="['relative rounded-xl overflow-hidden border cursor-pointer group transition-all hover:-translate-y-0.5',
             i===0 ? 'border-yellow-500/40 ring-1 ring-yellow-500/20' :
             i===1 ? 'border-gray-400/30' : 'border-amber-700/30']"
-          @click="$router.push(`/video/${v.video_id}`)">
+             @click="$router.push(`/video/${v.video_id}`)">
 
           <div class="relative aspect-video overflow-hidden">
             <img :src="v.cover_url" :alt="v.title"
-              class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-              @error="e => e.target.src='/placeholder.svg'" loading="lazy" />
+                 class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                 @error="e => e.target.src='/placeholder.svg'" loading="lazy"/>
             <div class="absolute inset-0 bg-gradient-card"></div>
 
             <!-- 排名徽章 -->
             <div :class="['absolute top-2 left-2 w-7 h-7 rounded-lg flex items-center justify-center font-black text-sm',
               i===0 ? 'bg-yellow-500 text-black' : i===1 ? 'bg-gray-300 text-black' : 'bg-amber-700 text-white']">
-              {{ i+1 }}
+              {{ i + 1 }}
             </div>
 
             <!-- 播放覆盖 -->
-            <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+            <div
+                class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
               <div class="w-10 h-10 rounded-full bg-white/20 backdrop-blur flex items-center justify-center">
-                <svg class="w-5 h-5 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                <svg class="w-5 h-5 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M8 5v14l11-7z"/>
+                </svg>
               </div>
             </div>
           </div>
@@ -79,9 +82,9 @@
       <!-- 4-20 名列表 -->
       <div class="space-y-2">
         <div v-for="(v, i) in videos.slice(3, 20)" :key="v.video_id"
-          class="flex items-center gap-3 p-3 rounded-xl bg-bg-surface border border-border/50
+             class="flex items-center gap-3 p-3 rounded-xl bg-bg-surface border border-border/50
                  hover:border-border hover:bg-bg-hover cursor-pointer group transition-all"
-          @click="$router.push(`/video/${v.video_id}`)">
+             @click="$router.push(`/video/${v.video_id}`)">
 
           <!-- 排名 -->
           <div :class="['w-7 text-center font-black text-sm shrink-0',
@@ -92,9 +95,9 @@
           <!-- 缩略图 -->
           <div class="relative w-24 sm:w-28 aspect-video rounded-lg overflow-hidden bg-bg-card shrink-0">
             <img :src="v.cover_url" class="w-full h-full object-cover group-hover:scale-105 transition-transform"
-              loading="lazy" @error="e => e.target.src='/placeholder.svg'" />
+                 loading="lazy" @error="e => e.target.src='/placeholder.svg'"/>
             <span v-if="v.duration"
-              class="absolute bottom-1 right-1 px-1 rounded bg-black/80 text-white text-[10px] font-mono">
+                  class="absolute bottom-1 right-1 px-1 rounded bg-black/80 text-white text-[10px] font-mono">
               {{ formatDuration(v.duration) }}
             </span>
           </div>
@@ -107,7 +110,8 @@
             <div class="flex items-center gap-3 mt-1.5 text-xs text-text-muted flex-wrap">
               <span class="flex items-center gap-1">
                 <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5C21.27 7.61 17 4.5 12 4.5z"/>
+                  <path
+                      d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5C21.27 7.61 17 4.5 12 4.5z"/>
                 </svg>
                 {{ formatCount(v.play_count) }}
               </span>
@@ -129,34 +133,39 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted } from 'vue'
-import { videoApi } from '@/api'
+import {onMounted, ref, watch} from 'vue'
+import {videoApi} from '@/api'
 
 const activeType = ref('short')
 const activePeriod = ref('day')
 const videos = ref([])
 const loading = ref(true)
 
-const types = [{ label: '短视频', value: 'short' }, { label: '长视频', value: 'long' }, { label: '创作者', value: '' }]
-const periods = [{ label: '日榜', value: 'day' }, { label: '周榜', value: 'week' }, { label: '月榜', value: 'month' }]
+const types = [{label: '短视频', value: 'short'}, {label: '长视频', value: 'long'}, {label: '创作者', value: ''}]
+const periods = [{label: '日榜', value: 'day'}, {label: '周榜', value: 'week'}, {label: '月榜', value: 'month'}]
 
 async function fetchRankings() {
   loading.value = true
   try {
-    const res = await videoApi.popular({ page: 1, page_size: 20,
-      period: activePeriod.value, type: activeType.value })
-    videos.value = res.data?.list || []
-  } catch { videos.value = [] }
+    const res = await videoApi.popular({
+      page: 1, page_size: 20,
+      period: activePeriod.value, type: activeType.value
+    })
+    videos.value = res.data?.videos || []
+  } catch {
+    videos.value = []
+  }
   loading.value = false
 }
 
 function formatCount(n) {
   if (!n) return '0'
-  return n >= 10000 ? (n/10000).toFixed(1) + '万' : String(n)
+  return n >= 10000 ? (n / 10000).toFixed(1) + '万' : String(n)
 }
+
 function formatDuration(s) {
   if (!s) return ''
-  return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 }
 
 watch([activeType, activePeriod], fetchRankings)

@@ -29,6 +29,7 @@ type VideoListReq struct {
 	Size     int    // 每页数量
 	Region   string // 地区筛选（可选）
 	Category string // 分类筛选（可选）
+	OrderBy  string // 排序字段（可选）
 }
 
 // VideoItem 视频列表项（精简信息）
@@ -75,6 +76,9 @@ func (l *VideoListLogic) GetVideoList(req *VideoListReq) (*VideoListResp, error)
 	}
 	if req.Category != "" {
 		filters["category"] = req.Category
+	}
+	if req.OrderBy != "" {
+		filters["order_by"] = req.OrderBy
 	}
 
 	// 计算偏移量

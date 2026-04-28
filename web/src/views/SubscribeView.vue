@@ -3,11 +3,11 @@
 
     <!-- 未登录引导 -->
     <div v-if="!userStore.isLoggedIn"
-      class="flex flex-col items-center justify-center py-28 gap-5 animate-fade-in">
+         class="flex flex-col items-center justify-center py-28 gap-5 animate-fade-in">
       <div class="w-24 h-24 rounded-full bg-bg-surface border-2 border-border flex items-center justify-center">
         <svg class="w-12 h-12 text-text-muted" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round"
-            d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
         </svg>
       </div>
       <div class="text-center">
@@ -35,7 +35,7 @@
 
         <!-- 无关注状态 -->
         <div v-if="!following.length"
-          class="flex items-center gap-4 p-4 rounded-xl bg-bg-surface border border-border">
+             class="flex items-center gap-4 p-4 rounded-xl bg-bg-surface border border-border">
           <div class="w-12 h-12 rounded-full bg-bg-hover flex items-center justify-center shrink-0">
             <svg class="w-6 h-6 text-text-muted" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
@@ -51,8 +51,8 @@
         <!-- 创作者头像横滑 -->
         <div v-else class="flex gap-3 overflow-x-auto scrollbar-none pb-1">
           <div v-for="u in following" :key="u.id"
-            class="shrink-0 flex flex-col items-center gap-1.5 cursor-pointer group"
-            @click="scrollToCreator(u.id)">
+               class="shrink-0 flex flex-col items-center gap-1.5 cursor-pointer group"
+               @click="scrollToCreator(u.id)">
             <div class="relative">
               <div class="w-14 h-14 rounded-full p-0.5"
                    :class="u.hasNew ? 'bg-gradient-primary' : 'bg-border'">
@@ -61,7 +61,7 @@
                 </div>
               </div>
               <span v-if="u.hasNew"
-                class="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-primary border-2 border-bg"></span>
+                    class="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-primary border-2 border-bg"></span>
             </div>
             <span class="text-[11px] text-text-secondary group-hover:text-primary transition-colors
                          max-w-[56px] truncate text-center">{{ u.name }}</span>
@@ -78,10 +78,10 @@
       </div>
 
       <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3">
-        <VideoCard v-for="v in feedVideos" :key="v.video_id" :video="v" />
+        <VideoCard v-for="v in feedVideos" :key="v.video_id" :video="v"/>
         <template v-if="loading">
           <div v-for="i in 6" :key="`sk${i}`"
-            class="rounded-xl bg-bg-card border border-border animate-pulse">
+               class="rounded-xl bg-bg-card border border-border animate-pulse">
             <div class="aspect-video bg-bg-hover rounded-t-xl"></div>
             <div class="p-2.5 space-y-1.5">
               <div class="h-2.5 bg-bg-hover rounded"></div>
@@ -97,11 +97,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import {ref} from 'vue'
 import VideoCard from '@/components/common/VideoCard.vue'
-import { useUserStore } from '@/stores/user'
-import { useInfiniteScroll } from '@/composables/useInfiniteScroll'
-import { videoApi } from '@/api'
+import {useUserStore} from '@/stores/user'
+import {useInfiniteScroll} from '@/composables/useInfiniteScroll'
+import {videoApi} from '@/api'
 
 const userStore = useUserStore()
 const following = ref([]) // TODO: GET /api/user/following
@@ -109,14 +109,14 @@ const feedVideos = ref([])
 const page = ref(1)
 
 async function fetchFeed() {
-  const res = await videoApi.list({ page: page.value, page_size: 20, order_by: 'created_at' })
-  const list = res.data?.list || []
+  const res = await videoApi.list({page: page.value, page_size: 20, order_by: 'created_at'})
+  const list = res.data?.videos || []
   feedVideos.value.push(...list)
   page.value++
   if (list.length < 20) return false
 }
 
-const { sentinel, loading, hasMore } = useInfiniteScroll(fetchFeed)
+const {sentinel, loading, hasMore} = useInfiniteScroll(fetchFeed)
 
 function scrollToCreator(id) {
   // TODO: 跳转到创作者主页

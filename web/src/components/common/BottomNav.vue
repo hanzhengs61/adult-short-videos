@@ -3,13 +3,13 @@
        style="background:rgba(13,13,15,0.96);backdrop-filter:blur(20px)">
     <div class="flex items-stretch" style="padding-bottom:env(safe-area-inset-bottom)">
       <button v-for="item in navItems" :key="item.to"
-        @click="handleNav(item)"
-        :class="['flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 transition-all relative',
+              @click="handleNav(item)"
+              :class="['flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 transition-all relative',
           isActive(item) ? 'text-primary' : 'text-text-muted']">
 
         <!-- 活跃背景光晕 -->
         <span v-if="isActive(item)"
-          class="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-gradient-primary rounded-b-full"></span>
+              class="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-gradient-primary rounded-b-full"></span>
 
         <!-- 图标（活跃时 filled，否则 outline） -->
         <span class="relative">
@@ -17,11 +17,11 @@
                :fill="isActive(item) ? 'currentColor' : 'none'"
                stroke="currentColor" :stroke-width="isActive(item) ? '0' : '1.8'"
                stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-            <path :d="isActive(item) ? item.iconFill : item.iconOutline" />
+            <path :d="isActive(item) ? item.iconFill : item.iconOutline"/>
           </svg>
           <!-- 角标（订阅有新内容）-->
           <span v-if="item.badge"
-            class="absolute -top-1 -right-1.5 min-w-[14px] h-3.5 px-0.5 rounded-full
+                class="absolute -top-1 -right-1.5 min-w-[14px] h-3.5 px-0.5 rounded-full
                    bg-primary text-white text-[9px] font-bold flex items-center justify-center">
             {{ item.badge }}
           </span>
@@ -39,9 +39,9 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { useUserStore } from '@/stores/user'
+import {computed} from 'vue'
+import {useRoute, useRouter} from 'vue-router'
+import {useUserStore} from '@/stores/user'
 
 const route = useRoute()
 const router = useRouter()

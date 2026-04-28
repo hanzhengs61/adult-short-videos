@@ -61,10 +61,9 @@ func (h *PlayHandler) GetPlayHistory(c *gin.Context) {
 	}
 
 	pageStr := c.DefaultQuery("page", "1")
-	sizeStr := c.DefaultQuery("size", "20")
+	size, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
 
 	page, _ := strconv.Atoi(pageStr)
-	size, _ := strconv.Atoi(sizeStr)
 
 	req := &logic.PlayHistoryListReq{
 		Page: page,

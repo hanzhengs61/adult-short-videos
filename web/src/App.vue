@@ -1,9 +1,9 @@
 <template>
-  <NavBar />
+  <NavBar/>
   <main class="min-h-screen">
     <router-view v-slot="{ Component }">
       <transition name="fade" mode="out-in">
-        <component :is="Component" />
+        <component :is="Component"/>
       </transition>
     </router-view>
   </main>
@@ -25,22 +25,25 @@
           <p class="text-text-secondary text-xs font-semibold mb-3 uppercase tracking-widest">发现</p>
           <div class="space-y-2">
             <router-link v-for="l in footerLinks.discover" :key="l.to" :to="l.to"
-              class="block text-text-muted text-xs hover:text-primary transition-colors">{{ l.label }}</router-link>
+                         class="block text-text-muted text-xs hover:text-primary transition-colors">{{ l.label }}
+            </router-link>
           </div>
         </div>
         <div>
           <p class="text-text-secondary text-xs font-semibold mb-3 uppercase tracking-widest">账号</p>
           <div class="space-y-2">
             <a v-for="l in footerLinks.account" :key="l.label" href="#"
-              @click.prevent="l.action && l.action()"
-              class="block text-text-muted text-xs hover:text-primary transition-colors cursor-pointer">{{ l.label }}</a>
+               @click.prevent="l.action && l.action()"
+               class="block text-text-muted text-xs hover:text-primary transition-colors cursor-pointer">{{
+                l.label
+              }}</a>
           </div>
         </div>
         <div>
           <p class="text-text-secondary text-xs font-semibold mb-3 uppercase tracking-widest">关于</p>
           <div class="space-y-2">
             <a v-for="l in footerLinks.about" :key="l.label"
-              class="block text-text-muted text-xs hover:text-primary transition-colors">{{ l.label }}</a>
+               class="block text-text-muted text-xs hover:text-primary transition-colors">{{ l.label }}</a>
           </div>
         </div>
       </div>
@@ -52,33 +55,33 @@
   </footer>
 
   <!-- 移动端底部导航 -->
-  <BottomNav />
+  <BottomNav/>
 
   <!-- 全局登录/注册弹窗 -->
-  <AuthModal />
+  <AuthModal/>
 </template>
 
 <script setup>
 import NavBar from '@/components/common/NavBar.vue'
 import BottomNav from '@/components/common/BottomNav.vue'
 import AuthModal from '@/components/common/AuthModal.vue'
-import { useUserStore } from '@/stores/user'
-import { onMounted } from 'vue'
+import {useUserStore} from '@/stores/user'
+import {onMounted} from 'vue'
 
 const userStore = useUserStore()
 
 const footerLinks = {
   discover: [
-    { label: '首页', to: '/' },
-    { label: '探索', to: '/explore' },
-    { label: '榜单', to: '/rankings' },
-    { label: '订阅', to: '/subscribe' },
+    {label: '首页', to: '/'},
+    {label: '探索', to: '/explore'},
+    {label: '榜单', to: '/rankings'},
+    {label: '订阅', to: '/subscribe'},
   ],
   account: [
-    { label: '登录', action: () => userStore.openAuth('login') },
-    { label: '注册', action: () => userStore.openAuth('register') },
-    { label: '我的收藏', action: () => userStore.openAuth('login') },
-    { label: '个人主页', action: () => userStore.openAuth('login') },
+    {label: '登录', action: () => userStore.openAuth('login')},
+    {label: '注册', action: () => userStore.openAuth('register')},
+    {label: '我的收藏', action: () => userStore.openAuth('login')},
+    {label: '个人主页', action: () => userStore.openAuth('login')},
   ],
   about: ['关于我们', '联系客服', '隐私政策', '使用条款'],
 }
@@ -87,6 +90,11 @@ onMounted(() => userStore.fetchInfo())
 </script>
 
 <style>
-.fade-enter-active, .fade-leave-active { transition: opacity 0.15s ease; }
-.fade-enter-from, .fade-leave-to { opacity: 0; }
+.fade-enter-active, .fade-leave-active {
+  transition: opacity 0.15s ease;
+}
+
+.fade-enter-from, .fade-leave-to {
+  opacity: 0;
+}
 </style>

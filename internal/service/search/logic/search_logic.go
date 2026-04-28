@@ -27,9 +27,9 @@ func NewSearchLogic(ctx context.Context, searchRepo repository.SearchRepository)
 
 // SearchReq 搜索请求
 type SearchReq struct {
-	Keyword string `form:"q"`    // 搜索关键词
-	Page    int    `form:"page"` // 页码
-	Size    int    `form:"size"` // 每页数量
+	Keyword string `form:"keyword"`   // 搜索关键词
+	Page    int    `form:"page"`      // 页码
+	Size    int    `form:"page_size"` // 每页数量
 }
 
 // VideoSearchItem 视频搜索结果项
@@ -232,7 +232,7 @@ func NewAdvancedSearchLogic(ctx context.Context, searchRepo repository.SearchRep
 
 // AdvancedSearchReq 高级搜索请求
 type AdvancedSearchReq struct {
-	Keyword     string `form:"q"`            // 关键词
+	Keyword     string `form:"keyword"`      // 关键词
 	Region      string `form:"region"`       // 地区
 	Category    string `form:"category"`     // 分类
 	Resolution  string `form:"resolution"`   // 分辨率
@@ -241,7 +241,7 @@ type AdvancedSearchReq struct {
 	ActorId     int64  `form:"actor_id"`     // 演员 ID
 	Sort        string `form:"sort"`         // 排序：hot, favorite, newest, oldest
 	Page        int    `form:"page"`
-	Size        int    `form:"size"`
+	Size        int    `form:"page_size"`
 }
 
 // AdvancedSearch 高级搜索

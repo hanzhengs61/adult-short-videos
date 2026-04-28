@@ -11,7 +11,7 @@
         <button @click="clearSearch" class="text-xs text-text-muted hover:text-primary transition-colors">清除</button>
       </div>
       <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3 mb-6">
-        <VideoCard v-for="v in searchResults" :key="v.video_id" :video="v" />
+        <VideoCard v-for="v in searchResults" :key="v.video_id" :video="v"/>
       </div>
     </div>
 
@@ -27,15 +27,16 @@
             最近搜索
           </h2>
           <button @click="exploreStore.clearHistory()"
-            class="text-xs text-text-muted hover:text-red-400 transition-colors">全部清除</button>
+                  class="text-xs text-text-muted hover:text-red-400 transition-colors">全部清除
+          </button>
         </div>
         <div class="flex flex-wrap gap-2">
           <button v-for="h in exploreStore.history" :key="h"
-            class="group flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-bg-surface border border-border
+                  class="group flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-bg-surface border border-border
                    text-text-secondary text-xs hover:border-primary/50 hover:text-primary transition-all">
             <span @click="quickSearch(h)">{{ h }}</span>
             <span @click.stop="exploreStore.removeHistory(h)"
-              class="text-text-muted group-hover:text-primary/70 hover:text-red-400! transition-colors leading-none">×</span>
+                  class="text-text-muted group-hover:text-primary/70 hover:text-red-400! transition-colors leading-none">×</span>
           </button>
         </div>
       </div>
@@ -45,13 +46,13 @@
         <h2 class="section-title text-sm mb-3">
           <svg class="w-4 h-4 text-primary" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round"
-              d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"/>
+                  d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"/>
           </svg>
           热搜关键词
         </h2>
         <div class="flex flex-wrap gap-2">
           <button v-for="(k, i) in hotKeywords" :key="k" @click="quickSearch(k)"
-            :class="['flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs border transition-all',
+                  :class="['flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs border transition-all',
               i < 3
                 ? 'bg-primary/10 border-primary/30 text-primary hover:bg-primary/20'
                 : 'bg-bg-surface border-border text-text-secondary hover:border-border-light hover:text-text-primary']">
@@ -77,7 +78,7 @@
           <h2 class="section-title text-sm">
             <svg class="w-4 h-4 text-text-muted" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round"
-                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
             </svg>
             推荐创作者
           </h2>
@@ -86,9 +87,9 @@
         <!-- 横滑创作者卡片 -->
         <div class="flex gap-3 overflow-x-auto scrollbar-none pb-3 snap-x snap-mandatory -mx-3 px-3">
           <div v-for="actor in actors" :key="actor.actor_id"
-            class="snap-start shrink-0 w-44 bg-bg-surface border border-border rounded-xl overflow-hidden
+               class="snap-start shrink-0 w-44 bg-bg-surface border border-border rounded-xl overflow-hidden
                    hover:border-primary/30 hover:shadow-card-hover transition-all duration-300 cursor-pointer group"
-            @click="quickSearch(actor.name)">
+               @click="quickSearch(actor.name)">
 
             <!-- 创作者头像 -->
             <div class="p-3 flex items-center gap-2.5 border-b border-border/50">
@@ -107,10 +108,10 @@
             <!-- 视频预览缩略图（3宫格） -->
             <div class="grid grid-cols-3 gap-0.5 p-0.5">
               <div v-for="v in (actor.videos || []).slice(0,3)" :key="v?.video_id"
-                class="aspect-square bg-bg-hover overflow-hidden">
+                   class="aspect-square bg-bg-hover overflow-hidden">
                 <img v-if="v?.cover_url" :src="v.cover_url"
-                  class="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
-                  loading="lazy" @error="e => e.target.style.display='none'" />
+                     class="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
+                     loading="lazy" @error="e => e.target.style.display='none'"/>
                 <div v-else class="w-full h-full bg-bg-hover flex items-center justify-center">
                   <svg class="w-4 h-4 text-text-muted" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M8 5v14l11-7z"/>
@@ -118,7 +119,7 @@
                 </div>
               </div>
               <div v-for="i in Math.max(0, 3-(actor.videos||[]).length)" :key="`empty${i}`"
-                class="aspect-square bg-bg-hover"></div>
+                   class="aspect-square bg-bg-hover"></div>
             </div>
 
             <div class="px-3 py-2">
@@ -129,7 +130,7 @@
           <!-- 骨架 -->
           <template v-if="actorsLoading">
             <div v-for="i in 5" :key="`ask${i}`"
-              class="snap-start shrink-0 w-44 bg-bg-surface border border-border rounded-xl overflow-hidden animate-pulse">
+                 class="snap-start shrink-0 w-44 bg-bg-surface border border-border rounded-xl overflow-hidden animate-pulse">
               <div class="h-14 bg-bg-hover"></div>
               <div class="grid grid-cols-3 gap-0.5 p-0.5">
                 <div v-for="j in 3" :key="j" class="aspect-square bg-bg-hover"></div>
@@ -144,13 +145,14 @@
         <h2 class="section-title text-sm mb-3">
           <svg class="w-4 h-4 text-text-muted" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round"
-              d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+                  d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
           </svg>
           热门标签
         </h2>
         <div class="flex flex-wrap gap-2">
           <button v-for="tag in popularTags" :key="tag" @click="quickSearch(tag)"
-            class="tag hover:border-primary/40 hover:text-primary">{{ tag }}</button>
+                  class="tag hover:border-primary/40 hover:text-primary">{{ tag }}
+          </button>
         </div>
       </div>
     </template>
@@ -158,11 +160,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import {onMounted, ref, watch} from 'vue'
+import {useRoute, useRouter} from 'vue-router'
 import VideoCard from '@/components/common/VideoCard.vue'
-import { useExploreStore } from '@/stores/explore'
-import { searchApi } from '@/api'
+import {useExploreStore} from '@/stores/explore'
+import {searchApi} from '@/api'
 
 const route = useRoute()
 const router = useRouter()
@@ -182,9 +184,11 @@ async function doSearch() {
   currentQuery.value = q
   exploreStore.addHistory(q)
   try {
-    const res = await searchApi.videos({ keyword: q, page: 1, page_size: 20 })
-    searchResults.value = res.data?.list || []
-  } catch { searchResults.value = [] }
+    const res = await searchApi.videos({keyword: q, page: 1, page_size: 20})
+    searchResults.value = res.data?.videos || []
+  } catch {
+    searchResults.value = []
+  }
 }
 
 function quickSearch(q) {
@@ -196,27 +200,27 @@ function clearSearch() {
   searchInput.value = ''
   currentQuery.value = ''
   searchResults.value = []
-  router.replace({ path: '/explore', query: {} })
+  router.replace({path: '/explore', query: {}})
 }
 
 async function fetchActors() {
   actorsLoading.value = true
   try {
-    const res = await searchApi.videos({ keyword: '', page: 1, page_size: 10 })
-    const videos = res.data?.list || []
+    const res = await searchApi.videos({keyword: '', page: 1, page_size: 10})
+    const videos = res.data?.videos || []
     const actorMap = new Map()
     videos.forEach(v => {
       v.actors?.forEach(a => {
-        if (!actorMap.has(a.actor_id)) actorMap.set(a.actor_id, { ...a, videos: [] })
+        if (!actorMap.has(a.actor_id)) actorMap.set(a.actor_id, {...a, videos: []})
         actorMap.get(a.actor_id).videos.push(v)
       })
     })
     actors.value = [...actorMap.values()].slice(0, 10)
     if (!actors.value.length) {
-      actors.value = hotKeywords.slice(0, 8).map((name, i) => ({ actor_id: i, name, videos: [] }))
+      actors.value = hotKeywords.slice(0, 8).map((name, i) => ({actor_id: i, name, videos: []}))
     }
   } catch {
-    actors.value = hotKeywords.slice(0, 8).map((name, i) => ({ actor_id: i, name, videos: [] }))
+    actors.value = hotKeywords.slice(0, 8).map((name, i) => ({actor_id: i, name, videos: []}))
   }
   actorsLoading.value = false
 }
@@ -227,7 +231,7 @@ watch(() => route.query.q, (newQ) => {
     searchInput.value = String(newQ)
     doSearch()
   }
-}, { immediate: true })
+}, {immediate: true})
 
 onMounted(fetchActors)
 </script>

@@ -82,8 +82,16 @@ func (r *videoRepository) List(ctx context.Context, offset, limit int, filters m
 		return nil, 0, err
 	}
 
-	// 分页查询，按创建时间倒序排列，最新的在前面
-	err := query.Order("created_at DESC").
+	// 安全排序列白名单，防止 SQL 注入
+	orderCol := "created_at"
+	if col, ok := filters["order_by"].(string); ok {
+		switch col {
+		case "play_count", "comment_count", "favorite_count", "created_at":
+			orderCol = col
+		}
+	}
+
+	err := query.Order(orderCol + " DESC").
 		Offset(offset).
 		Limit(limit).
 		Find(&videos).Error

@@ -29,19 +29,15 @@ func NewVideoHandler(db *gorm.DB) *VideoHandler {
 // 参数: page, size, region, category
 func (h *VideoHandler) GetVideoList(c *gin.Context) {
 	// c.DefaultQuery 可以设置默认值
-	pageStr := c.DefaultQuery("page", "1")
-	sizeStr := c.DefaultQuery("size", "20")
-	region := c.Query("region")
-	category := c.Query("category")
-
-	page, _ := strconv.Atoi(pageStr)
-	size, _ := strconv.Atoi(sizeStr)
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	size, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
 
 	req := &logic.VideoListReq{
 		Page:     page,
 		Size:     size,
-		Region:   region,
-		Category: category,
+		Region:   c.Query("region"),
+		Category: c.Query("category"),
+		OrderBy:  c.DefaultQuery("order_by", "created_at"),
 	}
 
 	l := logic.NewVideoListLogic(c.Request.Context(), h.videoRepo)
