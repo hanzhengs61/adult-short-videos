@@ -3,6 +3,7 @@ package handler
 import (
 	"crypto/sha256"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -194,4 +195,63 @@ func (h *UserHandler) Logout(c *gin.Context) {
 	}
 
 	response.SuccessWithMsg(c, "已退出登录", nil)
+}
+
+// GetTopCreators 创作者榜
+// 路由: GET /api/user/creators?limit=20
+type creatorItem struct {
+	UserId     int64   `json:"user_id"`
+	Username   string  `json:"username"`
+	Avatar     string  `json:"avatar"`
+	VideoCount int64   `json:"video_count"`
+	TotalPlays int64   `json:"total_plays"`
+	Score      float64 `json:"score"`
+}
+
+func (h *UserHandler) GetTopCreators(c *gin.Context) {
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	if limit < 1 || limit > 50 {
+		limit = 20
+	}
+
+	type row struct {
+		UserId     int64
+		Username   string
+		Avatar     string
+		VideoCount int64
+		TotalPlays int64
+	}
+
+	var rows []row
+	err := h.db.WithContext(c.Request.Context()).
+		Table("users u").
+		Select("u.user_id, u.username, u.avatar, COUNT(v.video_id) AS video_count, COALESCE(SUM(v.play_count),0) AS total_plays").
+		Joins("LEFT JOIN videos v ON v.user_id = u.user_id AND v.status = 1").
+		Group("u.user_id, u.username, u.avatar").
+		Having("COUNT(v.video_id) > 0").
+		Order("(COUNT(v.video_id) * 10 + COALESCE(SUM(v.play_count),0) * 0.001) DESC").
+		Limit(limit).
+		Scan(&rows).Error
+
+	if err != nil {
+		response.HandleError(c, err)
+		return
+	}
+
+	items := make([]creatorItem, 0, len(rows))
+	for _, r := range rows {
+		items = append(items, creatorItem{
+			UserId:     r.UserId,
+			Username:   r.Username,
+			Avatar:     r.Avatar,
+			VideoCount: r.VideoCount,
+			TotalPlays: r.TotalPlays,
+			Score:      float64(r.VideoCount)*10 + float64(r.TotalPlays)*0.001,
+		})
+	}
+
+	response.Success(c, map[string]interface{}{
+		"creators": items,
+		"total":    len(items),
+	})
 }

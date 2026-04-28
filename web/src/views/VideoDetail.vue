@@ -116,6 +116,7 @@
 <script setup>
 import {computed, onMounted, ref, watch} from 'vue'
 import {useRoute} from 'vue-router'
+import {useHead} from '@vueuse/head'
 import {favoriteApi, playApi, videoApi} from '@/api'
 import {useUserStore} from '@/stores/user'
 import CommentSection from '@/components/common/CommentSection.vue'
@@ -125,6 +126,18 @@ const userStore = useUserStore()
 
 const videoId = computed(() => Number(route.params.id))
 const video = ref(null)
+
+useHead(computed(() => ({
+  title: video.value ? `${video.value.title} - MITUN69` : 'MITUN69',
+  meta: [
+    { name: 'description', content: video.value
+        ? `在线观看「${video.value.title}」，高清视频免费播放。`
+        : 'MITUN69 免费高清视频在线观看。' },
+    { property: 'og:title', content: video.value ? `${video.value.title} - MITUN69` : 'MITUN69' },
+    { property: 'og:image', content: video.value?.cover_url || '' },
+    { property: 'og:type', content: 'video.other' },
+  ],
+})))
 const related = ref([])
 const loading = ref(true)
 const playUrl = ref('')

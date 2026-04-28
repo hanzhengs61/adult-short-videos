@@ -1,21 +1,50 @@
 <template>
   <div class="max-w-screen-2xl mx-auto px-3 sm:px-4 py-4">
 
-    <!-- 搜索结果 -->
-    <div v-if="searchResults.length" class="animate-slide-up">
+    <!-- 搜索结果（有搜索词时始终展示） -->
+    <div v-if="currentQuery" class="animate-slide-up">
       <div class="flex items-center justify-between mb-3">
         <h2 class="section-title">
           <span class="w-1 h-4 bg-gradient-primary rounded-full inline-block"></span>
           搜索：<span class="text-primary">{{ currentQuery }}</span>
+          <span class="text-text-muted text-xs font-normal ml-1">({{ searchResults.length }} 个结果)</span>
         </h2>
         <button @click="clearSearch" class="text-xs text-text-muted hover:text-primary transition-colors">清除</button>
       </div>
-      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3 mb-6">
-        <VideoCard v-for="v in searchResults" :key="v.video_id" :video="v"/>
+
+      <!-- 有结果时显示排序 + 网格 -->
+      <template v-if="searchResults.length">
+        <div class="mb-3">
+          <SortBar :modelValue="searchSort" @update:modelValue="v => { searchSort.value = v }"/>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3 mb-6">
+          <VideoCard v-for="v in sortedResults" :key="v.video_id" :video="v"/>
+        </div>
+      </template>
+
+      <!-- 无结果空状态 -->
+      <div v-else-if="!searching" class="flex flex-col items-center py-20 gap-4 text-center">
+        <svg class="w-16 h-16 text-text-muted opacity-40" fill="none" stroke="currentColor" stroke-width="1.2" viewBox="0 0 24 24">
+          <circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="M21 21l-4.35-4.35"/>
+        </svg>
+        <p class="text-text-primary font-medium">没有找到「{{ currentQuery }}」相关内容</p>
+        <p class="text-text-muted text-sm">换个关键词试试？</p>
+        <button @click="clearSearch" class="btn-ghost text-xs px-5 py-2 mt-1">清除搜索</button>
+      </div>
+
+      <!-- 搜索中骨架 -->
+      <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3">
+        <div v-for="i in 10" :key="i" class="rounded-xl bg-bg-card border border-border animate-pulse">
+          <div class="aspect-video bg-bg-hover rounded-t-xl"></div>
+          <div class="p-2.5 space-y-1.5">
+            <div class="h-2.5 bg-bg-hover rounded w-full"></div>
+            <div class="h-2 bg-bg-hover rounded w-2/3"></div>
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- 探索内容（无搜索时） -->
+    <!-- 探索内容（无搜索词时） -->
     <template v-else>
       <!-- 最近搜索 -->
       <div v-if="exploreStore.history.length" class="mb-6">
@@ -160,20 +189,41 @@
 </template>
 
 <script setup>
-import {onMounted, ref, watch} from 'vue'
-import {useRoute, useRouter} from 'vue-router'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useHead } from '@vueuse/head'
 import VideoCard from '@/components/common/VideoCard.vue'
-import {useExploreStore} from '@/stores/explore'
-import {searchApi} from '@/api'
+import SortBar from '@/components/common/SortBar.vue'
+import { useExploreStore } from '@/stores/explore'
+import { searchApi, userApi } from '@/api'
 
 const route = useRoute()
 const router = useRouter()
 const exploreStore = useExploreStore()
+
+useHead(computed(() => ({
+  title: currentQuery.value
+    ? `搜索「${currentQuery.value}」- MITUN69`
+    : 'MITUN69 - 探索发现',
+  meta: [
+    { name: 'description', content: currentQuery.value
+        ? `MITUN69 搜索「${currentQuery.value}」相关视频，共 ${searchResults.value.length} 个结果。`
+        : '探索热门关键词、热搜榜、推荐创作者，发现更多精彩内容。' },
+  ],
+})))
 const searchInput = ref('')
 const currentQuery = ref('')
 const searchResults = ref([])
+const searchSort = ref('created_at')
+const searching = ref(false)
 const actors = ref([])
 const actorsLoading = ref(true)
+
+const sortedResults = computed(() => {
+  const arr = [...searchResults.value]
+  const key = searchSort.value
+  return arr.sort((a, b) => (b[key] || 0) - (a[key] || 0))
+})
 
 const hotKeywords = ['中文字幕', '无码', '人妻', '美乳', '国产自拍', '制服诱惑', '美少女', '素人', '4K高清', '巨乳']
 const popularTags = ['剧情', '偷拍', '户外', '露出', '角色扮演', '痴女', '教师', '护士', '女友', '熟女', '黑丝', '泳装']
@@ -182,13 +232,21 @@ async function doSearch() {
   const q = searchInput.value.trim()
   if (!q) return
   currentQuery.value = q
+  searchResults.value = []
+  searching.value = true
   exploreStore.addHistory(q)
   try {
-    const res = await searchApi.videos({keyword: q, page: 1, page_size: 20})
+    const res = await searchApi.videos({ keyword: q, page: 1, page_size: 50 })
     searchResults.value = res.data?.videos || []
   } catch {
     searchResults.value = []
+  } finally {
+    searching.value = false
   }
+}
+
+function reSearch() {
+  // 排序是前端本地计算，无需重新请求
 }
 
 function quickSearch(q) {
@@ -206,16 +264,12 @@ function clearSearch() {
 async function fetchActors() {
   actorsLoading.value = true
   try {
-    const res = await searchApi.videos({keyword: '', page: 1, page_size: 10})
-    const videos = res.data?.videos || []
-    const actorMap = new Map()
-    videos.forEach(v => {
-      v.actors?.forEach(a => {
-        if (!actorMap.has(a.actor_id)) actorMap.set(a.actor_id, {...a, videos: []})
-        actorMap.get(a.actor_id).videos.push(v)
-      })
-    })
-    actors.value = [...actorMap.values()].slice(0, 10)
+    const res = await userApi.creators(10)
+    actors.value = (res.data?.creators || []).map(c => ({
+      actor_id: c.user_id,
+      name: c.username,
+      videos: [],
+    }))
     if (!actors.value.length) {
       actors.value = hotKeywords.slice(0, 8).map((name, i) => ({actor_id: i, name, videos: []}))
     }

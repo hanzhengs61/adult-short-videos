@@ -6,6 +6,7 @@ export const userApi = {
     login: data => request.post('/user/login', data),
     logout: () => request.post('/user/logout'),
     info: () => request.get('/user/info'),
+    creators: (limit = 20) => request.get('/user/creators', { params: { limit } }),
 }
 
 // 视频

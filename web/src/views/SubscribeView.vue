@@ -69,29 +69,31 @@
         </div>
       </div>
 
-      <!-- 动态 Feed -->
-      <div class="mb-3">
-        <h2 class="section-title">
-          <span class="w-1 h-4 bg-gradient-primary rounded-full inline-block"></span>
-          最新动态
-        </h2>
-      </div>
+      <!-- 动态 Feed：仅在有关注时展示 -->
+      <template v-if="following.length">
+        <div class="mb-3">
+          <h2 class="section-title">
+            <span class="w-1 h-4 bg-gradient-primary rounded-full inline-block"></span>
+            最新动态
+          </h2>
+        </div>
 
-      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3">
-        <VideoCard v-for="v in feedVideos" :key="v.video_id" :video="v"/>
-        <template v-if="loading">
-          <div v-for="i in 6" :key="`sk${i}`"
-               class="rounded-xl bg-bg-card border border-border animate-pulse">
-            <div class="aspect-video bg-bg-hover rounded-t-xl"></div>
-            <div class="p-2.5 space-y-1.5">
-              <div class="h-2.5 bg-bg-hover rounded"></div>
-              <div class="h-2 bg-bg-hover rounded w-2/3"></div>
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3">
+          <VideoCard v-for="v in feedVideos" :key="v.video_id" :video="v"/>
+          <template v-if="loading">
+            <div v-for="i in 6" :key="`sk${i}`"
+                 class="rounded-xl bg-bg-card border border-border animate-pulse">
+              <div class="aspect-video bg-bg-hover rounded-t-xl"></div>
+              <div class="p-2.5 space-y-1.5">
+                <div class="h-2.5 bg-bg-hover rounded"></div>
+                <div class="h-2 bg-bg-hover rounded w-2/3"></div>
+              </div>
             </div>
-          </div>
-        </template>
-      </div>
-      <div ref="sentinel" class="h-4 mt-2"></div>
-      <p v-if="!hasMore && feedVideos.length" class="text-center py-8 text-text-muted text-xs">── 已加载全部 ──</p>
+          </template>
+        </div>
+        <div ref="sentinel" class="h-4 mt-2"></div>
+        <p v-if="!hasMore && feedVideos.length" class="text-center py-8 text-text-muted text-xs">── 已加载全部 ──</p>
+      </template>
     </template>
   </div>
 </template>

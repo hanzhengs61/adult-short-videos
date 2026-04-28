@@ -12,6 +12,7 @@ func RegisterRoutes(rg *gin.RouterGroup, db *gorm.DB, jwtSecret string, jwtExpir
 	g := rg.Group("/user")
 	g.POST("/register", h.Register)
 	g.POST("/login", h.Login)
+	g.GET("/creators", h.GetTopCreators)
 
 	auth := g.Group("")
 	auth.Use(middleware.AuthMiddleware(jwtSecret))
