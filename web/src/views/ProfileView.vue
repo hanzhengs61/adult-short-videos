@@ -142,16 +142,20 @@
             <p class="text-sm mb-4">上传你的第一个视频，开始创作之旅</p>
             <button @click="uploadModal=true" class="btn-primary px-6">上传视频</button>
           </div>
-          <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 pb-6">
-            <VideoCard v-for="v in publishedVideos" :key="v.video_id" :video="v"/>
-            <div v-if="videosLoading" v-for="i in 4" :key="`sk${i}`"
-                 class="rounded-xl bg-bg-card border border-border animate-pulse">
-              <div class="aspect-video bg-bg-hover rounded-t-xl"></div>
-              <div class="p-2.5 space-y-1.5">
-                <div class="h-2.5 bg-bg-hover rounded"></div>
-                <div class="h-2 bg-bg-hover rounded w-2/3"></div>
-              </div>
+          <div v-else class="columns-2 sm:columns-3 md:columns-4 gap-3 pb-6">
+            <div v-for="v in publishedVideos" :key="v.video_id" class="break-inside-avoid mb-3">
+              <VideoCard :video="v"/>
             </div>
+            <template v-if="videosLoading">
+              <div v-for="i in 4" :key="`sk${i}`" class="break-inside-avoid mb-3
+                   rounded-xl bg-bg-card border border-border animate-pulse">
+                <div class="aspect-video bg-bg-hover rounded-t-xl"></div>
+                <div class="p-2.5 space-y-1.5">
+                  <div class="h-2.5 bg-bg-hover rounded"></div>
+                  <div class="h-2 bg-bg-hover rounded w-2/3"></div>
+                </div>
+              </div>
+            </template>
           </div>
         </div>
 
@@ -185,16 +189,20 @@
 
         <!-- 收藏 -->
         <div v-if="activeTab==='favorites'">
-          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 pb-6">
-            <VideoCard v-for="v in favoriteVideos" :key="v.video_id" :video="v"/>
-            <div v-if="videosLoading" v-for="i in 4" :key="`fsk${i}`"
-                 class="rounded-xl bg-bg-card border border-border animate-pulse">
-              <div class="aspect-video bg-bg-hover rounded-t-xl"></div>
-              <div class="p-2.5 space-y-1.5">
-                <div class="h-2.5 bg-bg-hover rounded"></div>
-                <div class="h-2 bg-bg-hover rounded w-2/3"></div>
-              </div>
+          <div class="columns-2 sm:columns-3 md:columns-4 gap-3 pb-6">
+            <div v-for="v in favoriteVideos" :key="v.video_id" class="break-inside-avoid mb-3">
+              <VideoCard :video="v"/>
             </div>
+            <template v-if="videosLoading">
+              <div v-for="i in 4" :key="`fsk${i}`" class="break-inside-avoid mb-3
+                   rounded-xl bg-bg-card border border-border animate-pulse">
+                <div class="aspect-video bg-bg-hover rounded-t-xl"></div>
+                <div class="p-2.5 space-y-1.5">
+                  <div class="h-2.5 bg-bg-hover rounded"></div>
+                  <div class="h-2 bg-bg-hover rounded w-2/3"></div>
+                </div>
+              </div>
+            </template>
           </div>
           <div v-if="!favoriteVideos.length && !videosLoading" class="text-center py-16 text-text-muted text-sm">
             还没有收藏任何视频

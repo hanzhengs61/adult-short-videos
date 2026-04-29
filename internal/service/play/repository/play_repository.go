@@ -76,13 +76,10 @@ func (r *playHistoryRepository) ListWithVideo(ctx context.Context, userId int64,
 			v.video_id,
 			v.title,
 			v.cover_url,
-			v.preview_url,
 			v.duration,
+			v.is_portrait,
 			h.play_duration,
 			h.play_progress,
-			v.fanhao,
-			v.region,
-			v.category,
 			EXTRACT(EPOCH FROM h.last_play_at)::bigint as last_play_at
 		`).
 		Joins("INNER JOIN videos v ON h.video_id = v.video_id").

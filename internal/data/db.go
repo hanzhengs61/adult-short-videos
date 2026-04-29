@@ -64,8 +64,6 @@ func Migrate(db *gorm.DB) error {
 		&userModel.LoginLog{},
 		&videoModel.Video{},
 		&videoModel.VideoHeatStats{},
-		&videoModel.Actor{},
-		&videoModel.VideoActor{},
 		&favoriteModel.Favorite{},
 		&playModel.PlayHistory{},
 		&commentModel.Comment{},

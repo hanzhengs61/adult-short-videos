@@ -99,13 +99,9 @@ func (r *favoriteRepository) ListWithVideo(ctx context.Context, userId int64, of
 			v.video_id,
 			v.title,
 			v.cover_url,
-			v.preview_url,
 			v.duration,
+			v.is_portrait,
 			v.play_count,
-			v.fanhao,
-			v.region,
-			v.category,
-			v.is_vip_only,
 			EXTRACT(EPOCH FROM f.created_at)::bigint as favorited_at
 		`).
 		Joins("INNER JOIN videos v ON f.video_id = v.video_id").

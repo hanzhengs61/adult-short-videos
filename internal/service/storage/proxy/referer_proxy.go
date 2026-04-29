@@ -107,38 +107,64 @@ func (p *RefererProxy) handleM3U8Response(resp *http.Response, w http.ResponseWr
 	return err
 }
 
-// rewriteM3U8URLs 重写 M3U8 中的 URL
+// rewriteM3U8URLs 重写 M3U8 中的 URL（含 URI= 属性）
 func (p *RefererProxy) rewriteM3U8URLs(content string, baseURL *url.URL) string {
+	// 当前文件的目录（带尾部 /）
+	dir := baseURL.Path[:strings.LastIndex(baseURL.Path, "/")+1]
+
+	toProxy := func(raw string) string {
+		raw = strings.TrimSpace(raw)
+		var full string
+		switch {
+		case strings.HasPrefix(raw, "http://") || strings.HasPrefix(raw, "https://"):
+			full = raw
+		case strings.HasPrefix(raw, "/"):
+			// 绝对路径：直接拼 scheme + host
+			full = fmt.Sprintf("%s://%s%s", baseURL.Scheme, baseURL.Host, raw)
+		default:
+			// 相对路径：拼目录
+			full = fmt.Sprintf("%s://%s%s%s", baseURL.Scheme, baseURL.Host, dir, raw)
+		}
+		return "/api/storage/proxy?url=" + url.QueryEscape(full)
+	}
+
 	lines := strings.Split(content, "\n")
-
 	for i, line := range lines {
-		line = strings.TrimSpace(line)
-
-		// 跳过注释和空行
-		if line == "" || strings.HasPrefix(line, "#") {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
 			continue
 		}
 
-		// 处理 URL 行
-		var fullURL string
-		if strings.HasPrefix(line, "http://") || strings.HasPrefix(line, "https://") {
-			// 绝对 URL
-			fullURL = line
-		} else {
-			// 相对 URL，需要拼接
-			fullURL = fmt.Sprintf("%s://%s%s/%s",
-				baseURL.Scheme,
-				baseURL.Host,
-				strings.TrimSuffix(baseURL.Path, baseURL.Path[strings.LastIndex(baseURL.Path, "/"):]),
-				line,
-			)
+		// 重写 #EXT-X-MEDIA / #EXT-X-KEY 等标签里的 URI="..." 属性
+		if strings.HasPrefix(trimmed, "#") {
+			if strings.Contains(trimmed, `URI="`) {
+				lines[i] = rewriteURIAttr(trimmed, toProxy)
+			}
+			continue
 		}
 
-		// 重写为代理 URL
-		lines[i] = fmt.Sprintf("/api/storage/proxy?url=%s", url.QueryEscape(fullURL))
+		// 普通 URL 行（分片地址、子 M3U8 地址）
+		lines[i] = toProxy(trimmed)
 	}
 
 	return strings.Join(lines, "\n")
+}
+
+// rewriteURIAttr 将标签行里 URI="xxx" 替换为代理地址
+func rewriteURIAttr(line string, toProxy func(string) string) string {
+	const prefix = `URI="`
+	start := strings.Index(line, prefix)
+	if start < 0 {
+		return line
+	}
+	start += len(prefix)
+	end := strings.Index(line[start:], `"`)
+	if end < 0 {
+		return line
+	}
+	end += start
+	original := line[start:end]
+	return line[:start] + toProxy(original) + line[end:]
 }
 
 // forwardResponse 转发普通响应（TS 分片等）

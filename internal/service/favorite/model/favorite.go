@@ -22,12 +22,8 @@ type FavoriteWithVideo struct {
 	VideoId     int64  `json:"video_id"`     // 视频 ID
 	Title       string `json:"title"`        // 视频标题
 	CoverURL    string `json:"cover_url"`    // 封面
-	PreviewURL  string `json:"preview_url"`  // 预览图
 	Duration    int32  `json:"duration"`     // 时长
+	IsPortrait  bool   `json:"is_portrait"`  // 是否竖屏
 	PlayCount   int64  `json:"play_count"`   // 播放次数
-	Fanhao      string `json:"fanhao"`       // 番号
-	Region      string `json:"region"`       // 地区
-	Category    string `json:"category"`     // 分类
-	IsVipOnly   bool   `json:"is_vip_only"`  // 是否 VIP专属
-	FavoritedAt int64  `json:"favorited_at"` // 收藏时间（Unix时间戳）
+	FavoritedAt int64  `json:"favorited_at"` // 收藏时间
 }

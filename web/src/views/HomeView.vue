@@ -17,20 +17,15 @@
         AD · mitun69 广告位
       </div>
 
-      <!-- 视频网格 -->
-      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3">
-        <template v-for="(v, idx) in videos" :key="v.video_id">
+      <!-- 视频瀑布流 -->
+      <div class="columns-2 sm:columns-3 md:columns-4 xl:columns-5 gap-3">
+        <div v-for="v in videos" :key="v.video_id" class="break-inside-avoid mb-3">
           <VideoCard :video="v"/>
-          <div v-if="(idx+1) % 20 === 0"
-               class="col-span-full rounded-xl border border-border/40 bg-bg-surface/60 h-12
-                   flex items-center justify-center text-text-muted text-xs tracking-widest">
-            AD · 广告位
-          </div>
-        </template>
+        </div>
 
         <template v-if="loading">
-          <div v-for="i in 10" :key="`sk${i}`"
-               class="rounded-xl bg-bg-card border border-border animate-pulse">
+          <div v-for="i in 10" :key="`sk${i}`" class="break-inside-avoid mb-3
+               rounded-xl bg-bg-card border border-border animate-pulse">
             <div class="aspect-video bg-bg-hover rounded-t-xl"></div>
             <div class="p-2.5 space-y-1.5">
               <div class="h-2.5 bg-bg-hover rounded w-full"></div>

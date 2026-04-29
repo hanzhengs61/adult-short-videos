@@ -10,86 +10,58 @@ import (
 	"gorm.io/gorm"
 )
 
-// VideoHandler 视频处理器
 type VideoHandler struct {
-	db        *gorm.DB
 	videoRepo repository.VideoRepository
 }
 
-// NewVideoHandler 创建视频处理器实例
 func NewVideoHandler(db *gorm.DB) *VideoHandler {
-	return &VideoHandler{
-		db:        db,
-		videoRepo: repository.NewVideoRepository(db),
-	}
+	return &VideoHandler{videoRepo: repository.NewVideoRepository(db)}
 }
 
-// GetVideoList 获取视频列表
-// 路由: GET /api/video/list
-// 参数: page, size, region, category
+// GetVideoList GET /api/video/list
 func (h *VideoHandler) GetVideoList(c *gin.Context) {
-	// c.DefaultQuery 可以设置默认值
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	size, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
 
 	req := &logic.VideoListReq{
-		Page:     page,
-		Size:     size,
-		Region:   c.Query("region"),
-		Category: c.Query("category"),
-		OrderBy:  c.DefaultQuery("order_by", "created_at"),
+		Page:    page,
+		Size:    size,
+		OrderBy: c.DefaultQuery("order_by", "created_at"),
 	}
 
 	l := logic.NewVideoListLogic(c.Request.Context(), h.videoRepo)
-	// 获取视频列表
 	resp, err := l.GetVideoList(req)
 	if err != nil {
 		response.HandleError(c, err)
 		return
 	}
-
 	response.Success(c, resp)
 }
 
-// GetVideoDetail 获取视频详情
-// 路由: GET /api/video/detail/:id
-// 参数: id（视频ID）
+// GetVideoDetail GET /api/video/detail/:id
 func (h *VideoHandler) GetVideoDetail(c *gin.Context) {
-
-	// :id 是路由中定义的参数
-	idStr := c.Param("id")
-
-	videoId, err := strconv.ParseInt(idStr, 10, 64)
+	videoId, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		response.HandleError(c, err)
 		return
 	}
 
 	l := logic.NewVideoDetailLogic(c.Request.Context(), h.videoRepo)
-	// 获取视频详情
 	detail, err := l.GetVideoDetail(videoId)
 	if err != nil {
 		response.HandleError(c, err)
 		return
 	}
-
 	response.Success(c, detail)
 }
 
-// GetHotVideos 获取热门视频
-// 路由: GET /api/video/hot
-// 参数: limit（可选，默认20）
+// GetHotVideos GET /api/video/hot
 func (h *VideoHandler) GetHotVideos(c *gin.Context) {
-
-	limitStr := c.DefaultQuery("limit", "20")
-	limit, _ := strconv.Atoi(limitStr)
-
-	// 限制范围
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 	if limit < 1 || limit > 50 {
 		limit = 20
 	}
 
-	// 查询热门视频
 	videos, err := h.videoRepo.GetHotVideos(c.Request.Context(), limit)
 	if err != nil {
 		response.HandleError(c, err)
@@ -97,20 +69,17 @@ func (h *VideoHandler) GetHotVideos(c *gin.Context) {
 	}
 
 	items := make([]logic.VideoItem, 0, len(videos))
-	for _, video := range videos {
+	for _, v := range videos {
 		items = append(items, logic.VideoItem{
-			VideoId:       video.VideoId,
-			Title:         video.Title,
-			CoverURL:      video.CoverURL,
-			PreviewURL:    video.PreviewURL,
-			Duration:      video.Duration,
-			PlayCount:     video.PlayCount,
-			FavoriteCount: video.FavoriteCount,
-			Fanhao:        video.Fanhao,
-			Region:        video.Region,
-			Category:      video.Category,
-			IsVipOnly:     video.IsVipOnly,
-			PublishedAt:   video.PublishedAt.Unix(),
+			VideoId:       v.VideoId,
+			Title:         v.Title,
+			CoverURL:      v.CoverURL,
+			Duration:      v.Duration,
+			IsPortrait:    v.IsPortrait,
+			PlayURL:       logic.BuildPlayURL(v.StorageType, v.SourceURL, v.LocalURL),
+			PlayCount:     v.PlayCount,
+			FavoriteCount: v.FavoriteCount,
+			PublishedAt:   v.PublishedAt.Unix(),
 		})
 	}
 

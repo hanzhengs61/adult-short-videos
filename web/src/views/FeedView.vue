@@ -1,5 +1,4 @@
 <template>
-  <!-- 单根元素，height:100vh 不用 fixed，避免与 Vue transition 的 transitionend 冲突 -->
   <div class="relative bg-black" style="height:100vh;overflow:hidden">
 
     <!-- 滚动容器 -->
@@ -11,14 +10,16 @@
            class="relative w-full snap-start snap-always shrink-0"
            :style="{ height: screenH + 'px' }">
 
-        <!-- 封面图兜底：视频加载前/失败时不显示黑屏 -->
-        <img v-if="v.cover_url" :src="v.cover_url"
-             class="absolute inset-0 w-full h-full object-cover opacity-60 pointer-events-none"/>
+        <!-- 封面图（始终可见，视频就绪后被覆盖） -->
+        <img :src="v.cover_url || '/placeholder.svg'"
+             class="absolute inset-0 w-full h-full object-cover pointer-events-none"/>
+
+        <!-- 视频元素（背景透明，加载失败时露出封面） -->
         <video
           :ref="el => { if (el) videoRefs[idx] = el }"
           class="absolute inset-0 w-full h-full object-cover"
-          :src="v.play_url || v.source_url"
-          loop playsinline preload="metadata"
+          style="background:transparent"
+          loop playsinline preload="none"
           @click="togglePlay(idx)"
         />
 
@@ -74,29 +75,40 @@
         </div>
 
         <!-- 底部信息 -->
-        <div class="absolute left-3 right-16 bottom-8">
-          <p class="text-white font-semibold text-sm leading-snug line-clamp-2 drop-shadow mb-2">{{ v.title }}</p>
-          <div class="flex flex-wrap gap-1.5 mb-2">
-            <span v-for="t in tagsOf(v)" :key="t"
-                  class="text-[11px] text-white/80 bg-white/10 backdrop-blur rounded-full px-2 py-0.5">
-              #{{ t }}
-            </span>
-          </div>
-          <div class="flex items-center gap-1 text-white/60 text-xs">
+        <div class="absolute left-3 right-16 bottom-14">
+          <p class="text-white font-semibold text-sm leading-snug line-clamp-2 drop-shadow">{{ v.title }}</p>
+          <div class="flex items-center gap-1 text-white/60 text-xs mt-1.5">
             <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
             {{ fmtN(v.play_count) }} 次播放
           </div>
         </div>
+
+        <!-- 进度条 -->
+        <div class="absolute bottom-0 left-0 right-0 z-10 pb-2 pt-1" @click.stop @touchstart.stop.passive>
+          <div class="flex items-center justify-between px-3 mb-1">
+            <span class="text-white/60 text-[10px]">{{ fmtTime(videoTimes[idx]?.current) }}</span>
+            <span class="text-white/60 text-[10px]">{{ fmtTime(videoTimes[idx]?.duration || v.duration) }}</span>
+          </div>
+          <div class="relative h-1 mx-3 bg-white/25 rounded-full">
+            <div class="absolute inset-y-0 left-0 bg-white rounded-full pointer-events-none transition-none"
+                 :style="{width: getProgress(idx)+'%'}"/>
+            <input type="range" min="0" max="100" step="0.1"
+                   :value="getProgress(idx)"
+                   @input="seekTo(idx, Number($event.target.value))"
+                   class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                   style="touch-action:none"/>
+          </div>
+        </div>
       </div>
 
-      <!-- 加载哨兵 -->
-      <div ref="sentinel" class="snap-start shrink-0 flex items-center justify-center"
+      <!-- 底部加载指示 -->
+      <div v-if="loading || hasMore" class="snap-start shrink-0 flex items-center justify-center"
            :style="{ height: screenH + 'px' }">
         <div v-if="loading" class="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin"/>
       </div>
     </div>
 
-    <!-- 左上角返回按钮 -->
+    <!-- 左上角：返回 -->
     <div class="absolute top-4 left-3 z-10">
       <button @click="goBack"
               class="w-9 h-9 rounded-full bg-black/40 backdrop-blur
@@ -107,7 +119,7 @@
       </button>
     </div>
 
-    <!-- 评论抽屉（absolute 在 fixed 容器内，无需 teleport） -->
+    <!-- 评论抽屉 -->
     <transition name="slide-up">
       <div v-if="commentVideo"
            class="absolute inset-0 z-20 flex flex-col justify-end bg-black/50"
@@ -131,8 +143,9 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import Hls from 'hls.js'
 import { videoApi, favoriteApi, playApi } from '@/api'
 import { useUserStore } from '@/stores/user'
 import CommentSection from '@/components/common/CommentSection.vue'
@@ -142,45 +155,116 @@ const router = useRouter()
 const userStore = useUserStore()
 
 const container = ref(null)
-const sentinel = ref(null)
 const videos = ref([])
-const videoRefs = ref([])
+const videoRefs = reactive([])   // 用 reactive 避免 ref[idx] 赋值到包装对象上
 const pausedIdx = ref(-1)
 const commentVideo = ref(null)
 const loading = ref(false)
 const page = ref(1)
 const hasMore = ref(true)
 const screenH = ref(window.innerHeight)
-const startId = Number(route.query.id) || 0
+const startIdRaw = route.query.id == null ? '' : String(route.query.id)
+const startId = Number(startIdRaw) || 0
+// idx -> { current: number, duration: number }
+const videoTimes = reactive({})
+
+// idx -> Hls 实例
+const hlsMap = {}
+// 已完成初始化的 idx
+const hlsReady = new Set()
+// 待播放的 idx（等 MANIFEST_PARSED 后播放）
+let pendingPlay = -1
 
 function fmtN(n) {
   if (!n) return '0'
   return n >= 10000 ? (n / 10000).toFixed(1) + '万' : String(n)
 }
 
-function tagsOf(v) {
-  return (v.tags || '').split(',').map(t => t.trim()).filter(Boolean).slice(0, 3)
+function stopAll() {
+  videoRefs.forEach(el => { if (el) el.pause() })
 }
 
-function stopAll() {
-  videoRefs.value.forEach(v => { if (v) { v.pause(); v.currentTime = 0 } })
+function initVideo(idx) {
+  if (hlsReady.has(idx) || hlsMap[idx]) return
+  const v = videos.value[idx]
+  const src = v?.play_url
+  if (!src) return
+  const el = videoRefs[idx]
+  if (!el) return
+
+  el.addEventListener('timeupdate', () => {
+    videoTimes[idx] = { current: el.currentTime, duration: el.duration || 0 }
+  })
+
+  if (src.includes('.m3u8') && Hls.isSupported()) {
+    // Chrome / Firefox / Edge：用 hls.js
+    const hls = new Hls({ enableWorker: true, maxBufferLength: 20 })
+    hls.loadSource(src)
+    hls.attachMedia(el)
+    hlsMap[idx] = hls
+
+    hls.on(Hls.Events.MANIFEST_PARSED, () => {
+      hlsReady.add(idx)
+      if (pendingPlay === idx) {
+        el.muted = false
+        el.play().catch(() => { el.muted = true; el.play().catch(() => {}) })
+      }
+    })
+
+    hls.on(Hls.Events.ERROR, (_, data) => {
+      if (data.fatal) hls.destroy()
+    })
+    return
+  }
+
+  // Safari 原生 HLS 或 MP4
+  el.src = src
+  hlsReady.add(idx)
 }
 
 function playAt(idx) {
-  const el = videoRefs.value[idx]
+  const el = videoRefs[idx]
   if (!el) return
   stopAll()
   pausedIdx.value = -1
-  el.play().catch(() => {})
+  pendingPlay = idx
+  initVideo(idx)
+
   const v = videos.value[idx]
   if (v) playApi.record(v.video_id).catch(() => {})
+
+  if (hlsReady.has(idx)) {
+    el.muted = false
+    el.play().catch(() => { el.muted = true; el.play().catch(() => {}) })
+  }
+  // 否则等 MANIFEST_PARSED 触发
 }
 
 function togglePlay(idx) {
-  const el = videoRefs.value[idx]
+  const el = videoRefs[idx]
   if (!el) return
   if (el.paused) { el.play().catch(() => {}); pausedIdx.value = -1 }
   else { el.pause(); pausedIdx.value = idx }
+}
+
+
+function getProgress(idx) {
+  const t = videoTimes[idx]
+  if (!t || !t.duration) return 0
+  return Math.min((t.current / t.duration) * 100, 100)
+}
+
+function seekTo(idx, pct) {
+  const el = videoRefs[idx]
+  if (!el || !el.duration) return
+  el.currentTime = (pct / 100) * el.duration
+}
+
+function fmtTime(s) {
+  if (!s || isNaN(s)) return '0:00'
+  const m = Math.floor(s / 60)
+  const sec = String(Math.floor(s % 60)).padStart(2, '0')
+  return `${m}:${sec}`
 }
 
 let itemObservers = []
@@ -216,7 +300,6 @@ async function fetchMore() {
   loading.value = false
 }
 
-let sentinelIo = null
 const onResize = () => { screenH.value = window.innerHeight }
 
 function goBack() {
@@ -224,29 +307,50 @@ function goBack() {
   router.back()
 }
 
+function onContainerScroll() {
+  const el = container.value
+  if (!el) return
+  if (el.scrollHeight - el.scrollTop - el.clientHeight < screenH.value * 1.5) fetchMore()
+}
+
 onMounted(async () => {
+  // ── 步骤 1：若携带目标视频 ID，先把它加载到列表第 0 位 ──────────────
+  // 必须先于 fetchMore()，否则 fetchMore() 会为第一页的随机视频初始化
+  // hlsMap[0]，导致 unshift 之后 index 0 的 HLS 状态错位、播错视频。
   if (startId) {
     try {
       const res = await videoApi.detail(startId)
-      if (res.data) videos.value.push({ ...res.data, _favorited: false })
-    } catch {}
+      if (res?.data) {
+        // 目标视频放到数组首位，_favorited 默认未收藏
+        videos.value = [{ ...res.data, _favorited: false }]
+      }
+    } catch {
+      // 拉取失败时降级：直接走下面的 fetchMore() 播第一页第一个视频
+    }
   }
+
+  // ── 步骤 2：追加更多视频（fetchMore 内部有去重过滤，目标视频不会重复） ──
   await fetchMore()
   await nextTick()
-  playAt(0)
 
-  sentinelIo = new IntersectionObserver(([entry]) => {
-    if (entry.isIntersecting) fetchMore()
-  }, { rootMargin: '600px', root: container.value })
-  if (sentinel.value) sentinelIo.observe(sentinel.value)
+  // 首屏由我们显式控制目标播放，避免初始 IO 回调抢占导致播错视频。
+  const targetIdx = startIdRaw
+    ? Math.max(0, videos.value.findIndex(v => String(v.video_id) === startIdRaw))
+    : 0
+  if (container.value) {
+    container.value.scrollTop = targetIdx * screenH.value
+  }
+  playAt(targetIdx)
 
+  container.value?.addEventListener('scroll', onContainerScroll, { passive: true })
   window.addEventListener('resize', onResize)
 })
 
 onUnmounted(() => {
   stopAll()
+  Object.values(hlsMap).forEach(h => h.destroy())
   itemObservers.forEach(o => o.disconnect())
-  sentinelIo?.disconnect()
+  container.value?.removeEventListener('scroll', onContainerScroll)
   window.removeEventListener('resize', onResize)
 })
 
@@ -268,7 +372,7 @@ async function toggleFavorite(v) {
 function openComment(v) { commentVideo.value = v }
 
 async function share(v) {
-  const url = `${location.origin}/video/${v.video_id}`
+  const url = `${location.origin}/feed?id=${v.video_id}`
   if (navigator.share) {
     navigator.share({ title: v.title, url }).catch(() => {})
   } else {

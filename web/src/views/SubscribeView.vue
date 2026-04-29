@@ -78,11 +78,13 @@
           </h2>
         </div>
 
-        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3">
-          <VideoCard v-for="v in feedVideos" :key="v.video_id" :video="v"/>
+        <div class="columns-2 sm:columns-3 md:columns-4 xl:columns-5 gap-3">
+          <div v-for="v in feedVideos" :key="v.video_id" class="break-inside-avoid mb-3">
+            <VideoCard :video="v"/>
+          </div>
           <template v-if="loading">
-            <div v-for="i in 6" :key="`sk${i}`"
-                 class="rounded-xl bg-bg-card border border-border animate-pulse">
+            <div v-for="i in 6" :key="`sk${i}`" class="break-inside-avoid mb-3
+                 rounded-xl bg-bg-card border border-border animate-pulse">
               <div class="aspect-video bg-bg-hover rounded-t-xl"></div>
               <div class="p-2.5 space-y-1.5">
                 <div class="h-2.5 bg-bg-hover rounded"></div>
