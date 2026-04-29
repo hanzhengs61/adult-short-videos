@@ -10,15 +10,15 @@
            class="relative w-full snap-start snap-always shrink-0"
            :style="{ height: screenH + 'px' }">
 
-        <!-- 封面图（始终可见，视频就绪后被覆盖） -->
+        <!-- 封面图（始终可见，视频就绪后被覆盖；object-contain 与视频保持一致比例） -->
         <img :src="v.cover_url || '/placeholder.svg'"
-             class="absolute inset-0 w-full h-full object-cover pointer-events-none"/>
+             class="absolute inset-0 w-full h-full object-contain pointer-events-none"/>
 
-        <!-- 视频元素（背景透明，加载失败时露出封面） -->
+        <!-- 视频元素（object-contain 保持原始比例，横屏视频不裁剪，黑边填充） -->
         <video
           :ref="el => { if (el) videoRefs[idx] = el }"
-          class="absolute inset-0 w-full h-full object-cover"
-          style="background:transparent"
+          class="absolute inset-0 w-full h-full object-contain"
+          style="background:#000"
           loop playsinline preload="none"
           @click="togglePlay(idx)"
         />
