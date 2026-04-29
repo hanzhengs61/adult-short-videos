@@ -17,20 +17,24 @@
         AD · mitun69 广告位
       </div>
 
-      <!-- 视频瀑布流 -->
-      <div class="columns-2 sm:columns-3 md:columns-4 xl:columns-5 gap-3">
-        <div v-for="v in videos" :key="v.video_id" class="break-inside-avoid mb-3">
-          <VideoCard :video="v"/>
+      <!-- 视频瀑布流（按顺序分发到各列：左→右→下一行） -->
+      <div class="flex gap-3 items-start">
+        <div v-for="(col, colIdx) in videoColumns" :key="`col-${colIdx}`" class="flex-1 space-y-3">
+          <div v-for="v in col" :key="v.video_id">
+            <VideoCard :video="v"/>
+          </div>
         </div>
 
         <template v-if="loading">
-          <div v-for="i in 10" :key="`sk${i}`" class="break-inside-avoid mb-3
-               rounded-xl bg-bg-card border border-border animate-pulse">
-            <div class="aspect-video bg-bg-hover rounded-t-xl"></div>
-            <div class="p-2.5 space-y-1.5">
-              <div class="h-2.5 bg-bg-hover rounded w-full"></div>
-              <div class="h-2.5 bg-bg-hover rounded w-3/4"></div>
-              <div class="h-2 bg-bg-hover rounded w-1/2 mt-2"></div>
+          <div v-for="(col, colIdx) in skeletonColumns" :key="`sk-col-${colIdx}`" class="flex-1 space-y-3">
+            <div v-for="i in col" :key="`sk${colIdx}-${i}`"
+                 class="rounded-xl bg-bg-card border border-border animate-pulse">
+              <div class="aspect-video bg-bg-hover rounded-t-xl"></div>
+              <div class="p-2.5 space-y-1.5">
+                <div class="h-2.5 bg-bg-hover rounded w-full"></div>
+                <div class="h-2.5 bg-bg-hover rounded w-3/4"></div>
+                <div class="h-2 bg-bg-hover rounded w-1/2 mt-2"></div>
+              </div>
             </div>
           </div>
         </template>
@@ -44,7 +48,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useHead } from '@vueuse/head'
 import VideoCard from '@/components/common/VideoCard.vue'
 import SortBar from '@/components/common/SortBar.vue'
@@ -64,6 +68,32 @@ useHead({
 const videos = ref([])
 const page = ref(1)
 const activeSort = ref('created_at')
+const columnCount = ref(2)
+
+const videoColumns = computed(() => {
+  const cols = Array.from({ length: columnCount.value }, () => [])
+  videos.value.forEach((video, idx) => {
+    cols[idx % columnCount.value].push(video)
+  })
+  return cols
+})
+
+const skeletonColumns = computed(() => {
+  const total = 10
+  const cols = Array.from({ length: columnCount.value }, () => [])
+  for (let i = 0; i < total; i++) {
+    cols[i % columnCount.value].push(i)
+  }
+  return cols
+})
+
+function syncColumnCount() {
+  const w = window.innerWidth
+  if (w >= 1280) columnCount.value = 5
+  else if (w >= 768) columnCount.value = 4
+  else if (w >= 640) columnCount.value = 3
+  else columnCount.value = 2
+}
 
 async function fetchMore() {
   const res = await videoApi.list({ page: page.value, page_size: 20, order_by: activeSort.value })
@@ -80,4 +110,13 @@ function setSort(v) {
   activeSort.value = v
   videos.value = []; page.value = 1; reset()
 }
+
+onMounted(() => {
+  syncColumnCount()
+  window.addEventListener('resize', syncColumnCount)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', syncColumnCount)
+})
 </script>
