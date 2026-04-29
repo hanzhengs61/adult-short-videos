@@ -3,21 +3,16 @@ package model
 import "time"
 
 type User struct {
-	UserId       int64     `gorm:"primaryKey;autoIncrement;comment:主键ID" json:"user_id"`
-	Username     string    `gorm:"uniqueIndex;type:varchar(50);not null;comment:用户名" json:"username"`
-	Password     string    `gorm:"type:varchar(255);not null;comment:密码" json:"-"`
-	Email        string    `gorm:"uniqueIndex;type:varchar(100);comment:邮箱" json:"email"`
-	Avatar       string    `gorm:"type:varchar(255);comment:头像 URL" json:"avatar"`
-	VipLevel     int32     `gorm:"default:0;comment:VIP等级：0=普通用户，1=VIP，2=SVIP" json:"vip_level"`
-	VipExpireAt  time.Time `gorm:"type:timestamp;comment:VIP 过期时间" json:"vip_expire_at"`
-	Status       int32     `gorm:"default:1;comment:账号状态：0=禁用，1=正常" json:"status"`
-	LastLoginAt  time.Time `gorm:"type:timestamp;comment:最后登录时间" json:"last_login_at"`
-	LastLoginIp  string    `gorm:"type:varchar(50);comment:最后登录 IP" json:"last_login_ip"`
-	InviteCode   string    `gorm:"type:varchar(20);comment:自己的邀请码" json:"invite_code"`
-	InvitedBy    int64     `gorm:"index;default:0;comment:被谁邀请（用户 ID）" json:"invited_by"`
-	TotalInvites int32     `gorm:"default:0;comment:总邀请人数" json:"total_invites"`
-	CreatedAt    time.Time `gorm:"autoCreateTime;comment:创建时间" json:"created_at"`
-	UpdatedAt    time.Time `gorm:"autoUpdateTime;comment:更新时间" json:"updated_at"`
+	UserId      int64     `gorm:"primaryKey;autoIncrement;comment:主键ID" json:"user_id"`
+	Username    string    `gorm:"uniqueIndex;type:varchar(50);not null;comment:用户名" json:"username"`
+	Password    string    `gorm:"type:varchar(255);not null;comment:密码" json:"-"`
+	Email       string    `gorm:"uniqueIndex;type:varchar(100);comment:邮箱" json:"email"`
+	Avatar      string    `gorm:"type:varchar(255);comment:头像 URL" json:"avatar"`
+	Status      int32     `gorm:"default:1;comment:账号状态：0=禁用，1=正常" json:"status"`
+	LastLoginAt time.Time `gorm:"type:timestamp;comment:最后登录时间" json:"last_login_at"`
+	LastLoginIp string    `gorm:"type:varchar(50);comment:最后登录 IP" json:"last_login_ip"`
+	CreatedAt   time.Time `gorm:"autoCreateTime;comment:创建时间" json:"created_at"`
+	UpdatedAt   time.Time `gorm:"autoUpdateTime;comment:更新时间" json:"updated_at"`
 }
 
 // TableName 指定表名

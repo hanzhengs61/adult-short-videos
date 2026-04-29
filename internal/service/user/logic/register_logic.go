@@ -97,22 +97,12 @@ func (l *RegisterLogic) Register(req *RegisterReq) (*RegisterResp, error) {
 		Username: req.Username,
 		Password: hashedPassword,
 		Email:    req.Email,
-		VipLevel: 0, // 默认普通用户
 		Status:   1, // 默认正常状态
 	}
 
 	// 保存到数据库
 	if err := l.userRepo.Create(l.ctx, user); err != nil {
 		return nil, errors.New(errors.CodeDatabaseError, "创建用户失败")
-	}
-
-	// 5: 生成邀请码
-	// 用户创建成功后，数据库会自动分配 UserId
-	user.InviteCode = utils.GenerateInviterCode(user.UserId)
-
-	// 更新邀请码到数据库
-	if err := l.userRepo.Update(l.ctx, user); err != nil {
-		// 这不是致命错误，记录日志即可
 	}
 
 	// 6: 生成 JWT Token

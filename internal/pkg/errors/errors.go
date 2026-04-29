@@ -85,6 +85,7 @@ var (
 	ErrTokenExpired  = New(CodeTokenExpired, "Token已过期")
 	ErrEmailExists   = New(CodeEmailExists, "邮箱已被注册")
 	ErrEncryptError  = New(CodeEncryptError, "密码加密失败")
+	ErrUserDisabled  = New(CodeUserExists, "账号已被禁用")
 
 	// ErrVideoNotFound 视频错误
 	ErrVideoNotFound = New(CodeVideoNotFound, "视频不存在")

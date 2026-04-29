@@ -1,12 +1,12 @@
 package logic
 
 import (
+	"adult-short-videos/internal/pkg/errors"
 	"adult-short-videos/internal/pkg/metrics"
 	"adult-short-videos/internal/pkg/utils"
 	"adult-short-videos/internal/service/user/model"
 	"adult-short-videos/internal/service/user/repository"
 	"context"
-	"errors"
 
 	"gorm.io/gorm"
 )
@@ -59,13 +59,14 @@ type LoginResp struct {
 func (l *LoginLogic) Login(req *LoginReq) (*LoginResp, error) {
 	// 1: 查找用户
 	user, err := l.userRepo.FindByUsername(l.ctx, req.Username)
-	if err != nil {
+	if err != nil && err != gorm.ErrRecordNotFound {
 		// 如果是"记录不存在"错误，说明用户名不存在
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			metrics.UserLoginsTotal.WithLabelValues("false").Inc()
-			return nil, errors.New("用户名或密码错误")
-		}
-		return nil, errors.New("数据库查询失败")
+		metrics.UserLoginsTotal.WithLabelValues("false").Inc()
+		return nil, errors.ErrUserNotFound
+	}
+
+	if user == nil {
+		return nil, errors.ErrUserNotFound
 	}
 
 	// 2: 验证密码
@@ -74,13 +75,13 @@ func (l *LoginLogic) Login(req *LoginReq) (*LoginResp, error) {
 		// 记录登录失败日志
 		l.recordLoginLog(user.UserId, "password", false, "密码错误", req.ClientIP, req.UserAgent)
 		metrics.UserLoginsTotal.WithLabelValues("false").Inc()
-		return nil, errors.New("用户名或密码错误")
+		return nil, errors.ErrPasswordError
 	}
 
 	// 3: 检查账号状态
 	if user.Status != 1 {
 		metrics.UserLoginsTotal.WithLabelValues("false").Inc()
-		return nil, errors.New("账号已被禁用")
+		return nil, errors.ErrUserDisabled
 	}
 
 	// 4: 更新最后登录信息
@@ -100,7 +101,7 @@ func (l *LoginLogic) Login(req *LoginReq) (*LoginResp, error) {
 		l.jwtExpire,
 	)
 	if err != nil {
-		return nil, errors.New("生成访问令牌失败")
+		return nil, errors.ErrTokenInvalid
 	}
 
 	refreshToken, err := utils.GenerateToken(
@@ -110,7 +111,7 @@ func (l *LoginLogic) Login(req *LoginReq) (*LoginResp, error) {
 		l.jwtExpire*7,
 	)
 	if err != nil {
-		return nil, errors.New("生成刷新令牌失败")
+		return nil, errors.ErrTokenInvalid
 	}
 
 	return &LoginResp{

@@ -2,7 +2,6 @@ package utils
 
 import (
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -93,11 +92,4 @@ func ParseToken(tokenString, secret string) (*JWTClaims, error) {
 	}
 
 	return nil, errors.New("invalid token")
-}
-
-// GenerateInviterCode 生成邀请码，目前简单实现
-func GenerateInviterCode(userID int64) string {
-	// 使用用户 ID + 当前时间戳的后 6 位生成邀请码
-	// 例如: 用户 ID 1 -> "1000001"
-	return fmt.Sprintf("%d%06d", userID, time.Now().Unix()%1000000)
 }

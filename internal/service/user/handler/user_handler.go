@@ -152,13 +152,11 @@ func (h *UserHandler) GetUserInfo(c *gin.Context) {
 	// 3: 返回用户信息
 	// 构建响应数据（不包含敏感信息）
 	userInfo := map[string]interface{}{
-		"user_id":       user.UserId,
-		"username":      user.Username,
-		"email":         user.Email,
-		"avatar":        user.Avatar,
-		"vip_level":     user.VipLevel,
-		"vip_expire_at": user.VipExpireAt.Unix(),
-		"created_at":    user.CreatedAt.Unix(),
+		"user_id":    user.UserId,
+		"username":   user.Username,
+		"email":      user.Email,
+		"avatar":     user.Avatar,
+		"created_at": user.CreatedAt.Unix(),
 	}
 
 	response.Success(c, userInfo)
