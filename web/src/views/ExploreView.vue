@@ -12,14 +12,16 @@
         <button @click="clearSearch" class="text-xs text-text-muted hover:text-primary transition-colors">清除</button>
       </div>
 
-      <!-- 有结果时显示排序 + 网格 -->
+      <!-- 有结果时显示排序 + 瀑布流 -->
       <template v-if="searchResults.length">
         <div class="mb-3">
-          <SortBar :modelValue="searchSort" @update:modelValue="v => { searchSort.value = v }"/>
+          <SortBar :modelValue="searchSort" @update:modelValue="setSearchSort"/>
         </div>
-        <div class="columns-2 sm:columns-3 md:columns-4 xl:columns-5 gap-3 mb-6">
-          <div v-for="v in sortedResults" :key="v.video_id" class="break-inside-avoid mb-3">
-            <VideoCard :video="v"/>
+        <div class="flex gap-3 items-start mb-6">
+          <div v-for="(col, colIdx) in searchResultColumns" :key="`result-col-${colIdx}`" class="flex-1 space-y-3">
+            <div v-for="v in col" :key="v.video_id">
+              <VideoCard :video="v"/>
+            </div>
           </div>
         </div>
       </template>
@@ -35,13 +37,15 @@
       </div>
 
       <!-- 搜索中骨架 -->
-      <div v-else class="columns-2 sm:columns-3 md:columns-4 xl:columns-5 gap-3">
-        <div v-for="i in 10" :key="i" class="break-inside-avoid mb-3
-             rounded-xl bg-bg-card border border-border animate-pulse">
-          <div class="aspect-video bg-bg-hover rounded-t-xl"></div>
-          <div class="p-2.5 space-y-1.5">
-            <div class="h-2.5 bg-bg-hover rounded w-full"></div>
-            <div class="h-2 bg-bg-hover rounded w-2/3"></div>
+      <div v-else class="flex gap-3 items-start">
+        <div v-for="(col, colIdx) in skeletonColumns" :key="`search-sk-col-${colIdx}`" class="flex-1 space-y-3">
+          <div v-for="i in col" :key="`search-sk-${colIdx}-${i}`"
+               class="rounded-xl bg-bg-card border border-border animate-pulse">
+            <div class="aspect-video bg-bg-hover rounded-t-xl"></div>
+            <div class="p-2.5 space-y-1.5">
+              <div class="h-2.5 bg-bg-hover rounded w-full"></div>
+              <div class="h-2 bg-bg-hover rounded w-2/3"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -171,28 +175,12 @@
           </template>
         </div>
       </div>
-
-      <!-- 热门标签 -->
-      <div>
-        <h2 class="section-title text-sm mb-3">
-          <svg class="w-4 h-4 text-text-muted" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round"
-                  d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
-          </svg>
-          热门标签
-        </h2>
-        <div class="flex flex-wrap gap-2">
-          <button v-for="tag in popularTags" :key="tag" @click="quickSearch(tag)"
-                  class="tag hover:border-primary/40 hover:text-primary">{{ tag }}
-          </button>
-        </div>
-      </div>
     </template>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useHead } from '@vueuse/head'
 import VideoCard from '@/components/common/VideoCard.vue'
@@ -210,6 +198,7 @@ const searchSort = ref('created_at')
 const searching = ref(false)
 const actors = ref([])
 const actorsLoading = ref(true)
+const columnCount = ref(2)
 
 useHead(computed(() => ({
   title: currentQuery.value
@@ -222,24 +211,51 @@ useHead(computed(() => ({
   ],
 })))
 
-const sortedResults = computed(() => {
-  const arr = [...searchResults.value]
-  const key = searchSort.value
-  return arr.sort((a, b) => (b[key] || 0) - (a[key] || 0))
+const searchResultColumns = computed(() => {
+  const cols = Array.from({ length: columnCount.value }, () => [])
+  searchResults.value.forEach((video, idx) => {
+    cols[idx % columnCount.value].push(video)
+  })
+  return cols
 })
 
 const hotKeywords = ['中文字幕', '无码', '人妻', '美乳', '国产自拍', '制服诱惑', '美少女', '素人', '4K高清', '巨乳']
-const popularTags = ['剧情', '偷拍', '户外', '露出', '角色扮演', '痴女', '教师', '护士', '女友', '熟女', '黑丝', '泳装']
 
-async function doSearch() {
-  const q = searchInput.value.trim()
+// 瀑布流骨架
+const skeletonColumns = computed(() => {
+  const total = 10
+  const cols = Array.from({ length: columnCount.value }, () => [])
+  for (let i = 0; i < total; i++) {
+    cols[i % columnCount.value].push(i)
+  }
+  return cols
+})
+
+// 监听窗口大小
+function syncColumnCount() {
+  const w = window.innerWidth
+  if (w >= 1280) columnCount.value = 5
+  else if (w >= 768) columnCount.value = 4
+  else if (w >= 640) columnCount.value = 3
+  else columnCount.value = 2
+}
+
+// 搜索
+async function doSearch(keyword) {
+  const q = (keyword ?? searchInput.value).trim()
   if (!q) return
   currentQuery.value = q
+  searchInput.value = q
   searchResults.value = []
   searching.value = true
   exploreStore.addHistory(q)
   try {
-    const res = await searchApi.videos({ keyword: q, page: 1, page_size: 50 })
+    const res = await searchApi.videos({
+      keyword: q,
+      page: 1,
+      page_size: 10,
+      order_by: searchSort.value,
+    })
     searchResults.value = res.data?.videos || []
   } catch {
     searchResults.value = []
@@ -248,15 +264,19 @@ async function doSearch() {
   }
 }
 
-function reSearch() {
-  // 排序是前端本地计算，无需重新请求
-}
-
+// 快速搜索
 function quickSearch(q) {
-  searchInput.value = q
-  doSearch()
+  doSearch(q)
 }
 
+// 排序
+function setSearchSort(v) {
+  if (searchSort.value === v) return
+  searchSort.value = v
+  if (currentQuery.value) doSearch(currentQuery.value)
+}
+
+// 清空搜索
 function clearSearch() {
   searchInput.value = ''
   currentQuery.value = ''
@@ -264,6 +284,7 @@ function clearSearch() {
   router.replace({path: '/explore', query: {}})
 }
 
+// 获取创作者
 async function fetchActors() {
   actorsLoading.value = true
   try {
@@ -291,4 +312,12 @@ watch(() => route.query.q, (newQ) => {
 }, {immediate: true})
 
 onMounted(fetchActors)
+onMounted(() => {
+  syncColumnCount()
+  window.addEventListener('resize', syncColumnCount)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', syncColumnCount)
+})
 </script>

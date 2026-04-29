@@ -18,7 +18,7 @@ func NewSearchHandler(db *gorm.DB) *SearchHandler {
 	return &SearchHandler{searchRepo: repository.NewSearchRepository(db)}
 }
 
-// SearchVideos GET /api/search/videos?keyword=xxx&page=1&page_size=20
+// SearchVideos GET /api/search/videos?keyword=xxx&page=1&page_size=20&order_by=xxx
 func (h *SearchHandler) SearchVideos(c *gin.Context) {
 	var req logic.SearchReq
 	if err := c.ShouldBindQuery(&req); err != nil {

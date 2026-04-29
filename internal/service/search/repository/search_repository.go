@@ -12,7 +12,7 @@ import (
 // SearchRepository 搜索仓储接口
 type SearchRepository interface {
 	// SearchVideos 搜索视频
-	SearchVideos(ctx context.Context, keyword string, offset, limit int) ([]*videoModel.Video, int64, error)
+	SearchVideos(ctx context.Context, keyword string, offset, limit int, filters map[string]interface{}) ([]*videoModel.Video, int64, error)
 }
 
 type searchRepository struct {
@@ -25,7 +25,7 @@ func NewSearchRepository(db *gorm.DB) SearchRepository {
 }
 
 // SearchVideos 按标题或标签搜索视频
-func (r *searchRepository) SearchVideos(ctx context.Context, keyword string, offset, limit int) ([]*videoModel.Video, int64, error) {
+func (r *searchRepository) SearchVideos(ctx context.Context, keyword string, offset, limit int, filters map[string]interface{}) ([]*videoModel.Video, int64, error) {
 	var videos []*videoModel.Video
 	var total int64
 
@@ -43,11 +43,19 @@ func (r *searchRepository) SearchVideos(ctx context.Context, keyword string, off
 		Where("status = 1").
 		Where("title ILIKE ?", like)
 
+	orderCol := "created_at"
+	if col, ok := filters["order_by"].(string); ok {
+		switch col {
+		case "play_count", "comment_count", "favorite_count", "created_at":
+			orderCol = col
+		}
+	}
+
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	err := query.Order("play_count DESC").
+	err := query.Order(orderCol + " DESC").
 		Offset(offset).
 		Limit(limit).
 		Find(&videos).Error

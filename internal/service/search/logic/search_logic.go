@@ -24,6 +24,7 @@ type SearchReq struct {
 	Keyword string `form:"keyword"`   // 搜索关键词
 	Page    int    `form:"page"`      // 页码
 	Size    int    `form:"page_size"` // 每页数量
+	OrderBy string `form:"order_by"`  // 排序字段
 }
 
 type VideoSearchItem struct {
@@ -60,10 +61,15 @@ func (l *SearchLogic) Search(req *SearchReq) (*SearchResp, error) {
 		req.Size = 100
 	}
 
+	filters := map[string]interface{}{}
+	if req.OrderBy != "" {
+		filters["order_by"] = req.OrderBy
+	}
+
 	metrics.SearchRequestsTotal.WithLabelValues("video").Inc()
 	offset := (req.Page - 1) * req.Size
 
-	videos, total, err := l.searchRepo.SearchVideos(l.ctx, req.Keyword, offset, req.Size)
+	videos, total, err := l.searchRepo.SearchVideos(l.ctx, req.Keyword, offset, req.Size, filters)
 	if err != nil {
 		return nil, errors.New("搜索失败")
 	}
