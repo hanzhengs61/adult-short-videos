@@ -21,15 +21,6 @@
       <div class="absolute inset-0 pointer-events-none"
            style="background:linear-gradient(to top,rgba(0,0,0,0.6) 0%,transparent 50%)"/>
 
-      <!-- 左上：静音标志 -->
-      <div class="absolute top-1.5 left-1.5 text-white/70">
-        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round"
-                d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/>
-          <path stroke-linecap="round" stroke-linejoin="round" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"/>
-        </svg>
-      </div>
-
       <!-- 左下：播放次数 -->
       <div class="absolute bottom-1.5 left-1.5 flex items-center gap-0.5 text-white/90 text-[10px]">
         <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
@@ -53,9 +44,13 @@
       </Transition>
 
       <!-- 长按预览时：右上角静音切换 -->
+      <!-- @touchend.stop.prevent：阻止 touchend 冒泡到卡片（否则会触发 cancelLongPress 关掉预览）
+           .prevent 同时阻止浏览器把 touchend 转化为 click，避免 togglePreviewMute 被调用两次 -->
       <Transition name="preview-fade">
         <button v-if="previewing"
-                @click.stop="togglePreviewMute"
+                @touchstart.stop
+                @touchend.stop.prevent="togglePreviewMute"
+                @click.stop
                 class="absolute top-2 right-2 z-10 w-7 h-7 rounded-full bg-black/60
                        flex items-center justify-center text-white">
           <svg v-if="previewMuted" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
