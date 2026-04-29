@@ -48,10 +48,11 @@ func New(cfg *config.Config) (*App, error) {
 	}
 
 	return &App{
-		cfg:  cfg,
-		db:   db,
-		srv:  server.New(cfg, db),
-		heat: scheduler.NewHeatCalculator(db, 5*time.Minute),
+		cfg: cfg,
+		db:  db,
+		srv: server.New(cfg, db),
+		// 一天统计一次热度视频
+		heat: scheduler.NewHeatCalculator(db, 24*time.Hour),
 	}, nil
 }
 

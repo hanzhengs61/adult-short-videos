@@ -20,7 +20,7 @@
         <div class="flex gap-3 items-start mb-6">
           <div v-for="(col, colIdx) in searchResultColumns" :key="`result-col-${colIdx}`" class="flex-1 space-y-3">
             <div v-for="v in col" :key="v.video_id">
-              <VideoCard :video="v"/>
+              <VideoCard :video="v" :order-by="searchSort"/>
             </div>
           </div>
         </div>

@@ -102,7 +102,8 @@
       </div>
 
       <!-- 底部加载指示 -->
-      <div v-if="loading || hasMore" class="snap-start shrink-0 flex items-center justify-center"
+      <div v-if="loading || hasMore" ref="sentinel"
+           class="snap-start shrink-0 flex items-center justify-center"
            :style="{ height: screenH + 'px' }">
         <div v-if="loading" class="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin"/>
       </div>
@@ -158,6 +159,7 @@ const container = ref(null)
 const videos = ref([])
 const videoRefs = reactive([])   // 用 reactive 避免 ref[idx] 赋值到包装对象上
 const pausedIdx = ref(-1)
+const currentPlayingIdx = ref(-1)
 const commentVideo = ref(null)
 const loading = ref(false)
 const page = ref(1)
@@ -165,6 +167,11 @@ const hasMore = ref(true)
 const screenH = ref(window.innerHeight)
 const startIdRaw = route.query.id == null ? '' : String(route.query.id)
 const startId = Number(startIdRaw) || 0
+const sentinel = ref(null)
+
+const orderByAllowed = ['created_at', 'play_count', 'comment_count', 'favorite_count']
+const orderByRaw = route.query.order_by == null ? '' : String(route.query.order_by)
+const orderBy = orderByAllowed.includes(orderByRaw) ? orderByRaw : 'created_at'
 // idx -> { current: number, duration: number }
 const videoTimes = reactive({})
 
@@ -174,6 +181,18 @@ const hlsMap = {}
 const hlsReady = new Set()
 // 待播放的 idx（等 MANIFEST_PARSED 后播放）
 let pendingPlay = -1
+
+let sentinelObserver = null
+
+function observeSentinel() {
+  sentinelObserver?.disconnect()
+  sentinelObserver = null
+  if (!sentinel.value || !container.value) return
+  sentinelObserver = new IntersectionObserver(([entry]) => {
+    if (entry.isIntersecting) fetchMore()
+  }, { root: container.value, rootMargin: '200px', threshold: 0.01 })
+  sentinelObserver.observe(sentinel.value)
+}
 
 function fmtN(n) {
   if (!n) return '0'
@@ -225,13 +244,21 @@ function initVideo(idx) {
 function playAt(idx) {
   const el = videoRefs[idx]
   if (!el) return
+
+  // 防止 IntersectionObserver 在列表追加/重新观察时重复触发同一条视频，
+  // 导致 stopAll() 后重头播放。
+  if (idx === pausedIdx.value) return
+  if (idx === currentPlayingIdx.value && !el.paused) return
+
   stopAll()
   pausedIdx.value = -1
+  currentPlayingIdx.value = idx
   pendingPlay = idx
   initVideo(idx)
 
   const v = videos.value[idx]
-  if (v) playApi.record(v.video_id).catch(() => {})
+  // 观看视频不应要求登录；仅记录播放历史需要登录，避免 401 导致重定向。
+  if (v && userStore.isLoggedIn) playApi.record(v.video_id).catch(() => {})
 
   if (hlsReady.has(idx)) {
     el.muted = false
@@ -245,6 +272,7 @@ function togglePlay(idx) {
   if (!el) return
   if (el.paused) { el.play().catch(() => {}); pausedIdx.value = -1 }
   else { el.pause(); pausedIdx.value = idx }
+  if (!el.paused) currentPlayingIdx.value = idx
 }
 
 
@@ -273,10 +301,20 @@ function observeItems() {
   itemObservers = []
   const els = container.value?.querySelectorAll('[data-idx]')
   els?.forEach(el => {
+    const idx = Number(el.dataset.idx)
     const io = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting && entry.intersectionRatio >= 0.6) {
-        playAt(Number(el.dataset.idx))
-      }
+      if (!entry.isIntersecting || entry.intersectionRatio < 0.6) return
+
+      // 滑动过程中可能出现相邻两条同时满足交叉阈值，
+      // 用 scrollTop 推断“当前应该播放的 idx”，避免回切/重头播放。
+      if (!container.value) return
+      const expectedRaw = (container.value.scrollTop + screenH.value * 0.5) / screenH.value
+      const expectedIdx = Math.floor(expectedRaw)
+      const maxIdx = Math.max(0, videos.value.length - 1)
+      const safeExpectedIdx = Math.min(Math.max(0, expectedIdx), maxIdx)
+      if (idx !== safeExpectedIdx) return
+
+      playAt(idx)
     }, { threshold: 0.6, root: container.value })
     io.observe(el)
     itemObservers.push(io)
@@ -287,15 +325,20 @@ async function fetchMore() {
   if (loading.value || !hasMore.value) return
   loading.value = true
   try {
-    const res = await videoApi.list({ page: page.value, page_size: 10, order_by: 'created_at' })
-    const list = (res.data?.videos || [])
+    const pageSize = 10
+    const res = await videoApi.list({ page: page.value, page_size: pageSize, order_by: orderBy })
+    const rawList = res.data?.videos || []
+    const list = rawList
       .filter(v => !videos.value.some(e => e.video_id === v.video_id))
       .map(v => ({ ...v, _favorited: false }))
     videos.value.push(...list)
     page.value++
-    if (list.length < 10) hasMore.value = false
+    // 注意：这里用 rawList 判断是否到底，而不是用 filter 后长度。
+    // 否则当目标视频重复被过滤时，会误判“已到底”，导致无法继续滑动。
+    if (rawList.length < pageSize) hasMore.value = false
     await nextTick()
     observeItems()
+    observeSentinel()
   } catch {}
   loading.value = false
 }
@@ -314,35 +357,60 @@ function onContainerScroll() {
 }
 
 onMounted(async () => {
-  // ── 步骤 1：若携带目标视频 ID，先把它加载到列表第 0 位 ──────────────
-  // 必须先于 fetchMore()，否则 fetchMore() 会为第一页的随机视频初始化
-  // hlsMap[0]，导致 unshift 之后 index 0 的 HLS 状态错位、播错视频。
-  if (startId) {
-    try {
-      const res = await videoApi.detail(startId)
-      if (res?.data) {
-        // 目标视频放到数组首位，_favorited 默认未收藏
-        videos.value = [{ ...res.data, _favorited: false }]
-      }
-    } catch {
-      // 拉取失败时降级：直接走下面的 fetchMore() 播第一页第一个视频
+  const pageSize = 10
+
+  // 先做页面初始化：尽量找到 startId 在当前排序列表里的真实索引。
+  // 之前仅请求第一页会导致 startId 落在第 11 条以后仍无法定位，从而错误回到 index=0。
+  if (startIdRaw) {
+    // 最多向后查找 N 页，通常第11条在第2页即可命中。
+    const maxSearchPages = 3
+    let foundIdx = -1
+    let currentPage = 1
+    let lastRawLen = 0
+    videos.value = []
+    hlsReady.clear()
+    Object.keys(hlsMap).forEach(k => delete hlsMap[k])
+
+    while (currentPage <= maxSearchPages && foundIdx < 0) {
+      const res = await videoApi.list({ page: currentPage, page_size: pageSize, order_by: orderBy })
+      const rawList = res.data?.videos || []
+      lastRawLen = rawList.length
+
+      const newOnes = rawList
+        .filter(v => !videos.value.some(e => e.video_id === v.video_id))
+        .map(v => ({ ...v, _favorited: false }))
+
+      videos.value.push(...newOnes)
+
+      foundIdx = videos.value.findIndex(v => String(v.video_id) === startIdRaw)
+      if (rawList.length < pageSize) break
+      currentPage++
     }
+
+    // 下一次 fetchMore 从哪一页继续
+    page.value = currentPage + 1
+    hasMore.value = lastRawLen >= pageSize
+
+    if (foundIdx < 0) {
+      // 兜底：仍然找不到就降级为播放第一页的第一个（避免之前把目标强行塞到 index=0）
+      foundIdx = 0
+    }
+
+    await nextTick()
+    if (container.value) container.value.scrollTop = foundIdx * screenH.value
+    await nextTick()
+    observeItems()
+    playAt(foundIdx)
+  } else {
+    // 不带目标 ID：正常加载第一页并从 0 开始播放
+    await fetchMore()
+    await nextTick()
+    observeItems()
+    playAt(0)
   }
 
-  // ── 步骤 2：追加更多视频（fetchMore 内部有去重过滤，目标视频不会重复） ──
-  await fetchMore()
-  await nextTick()
-
-  // 首屏由我们显式控制目标播放，避免初始 IO 回调抢占导致播错视频。
-  const targetIdx = startIdRaw
-    ? Math.max(0, videos.value.findIndex(v => String(v.video_id) === startIdRaw))
-    : 0
-  if (container.value) {
-    container.value.scrollTop = targetIdx * screenH.value
-  }
-  playAt(targetIdx)
-
-  container.value?.addEventListener('scroll', onContainerScroll, { passive: true })
+  // 用 sentinel 触底加载，避免 snap/阈值导致“第9条后不再触发加载”
+  observeSentinel()
   window.addEventListener('resize', onResize)
 })
 
@@ -350,7 +418,7 @@ onUnmounted(() => {
   stopAll()
   Object.values(hlsMap).forEach(h => h.destroy())
   itemObservers.forEach(o => o.disconnect())
-  container.value?.removeEventListener('scroll', onContainerScroll)
+  sentinelObserver?.disconnect()
   window.removeEventListener('resize', onResize)
 })
 
@@ -372,7 +440,7 @@ async function toggleFavorite(v) {
 function openComment(v) { commentVideo.value = v }
 
 async function share(v) {
-  const url = `${location.origin}/feed?id=${v.video_id}`
+  const url = `${location.origin}/feed?id=${v.video_id}&order_by=${orderBy}`
   if (navigator.share) {
     navigator.share({ title: v.title, url }).catch(() => {})
   } else {

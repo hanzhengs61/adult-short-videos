@@ -102,7 +102,11 @@ import { ref, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import Hls from 'hls.js'
 
-const props = defineProps({ video: { type: Object, required: true } })
+const props = defineProps({
+  video: { type: Object, required: true },
+  // 用于把当前列表排序传到播放页，保证“点哪个视频进去就按哪个顺序播放+继续加载”
+  orderBy: { type: String, default: 'created_at' },
+})
 const router = useRouter()
 
 const previewing = ref(false)
@@ -115,7 +119,7 @@ let previewHls = null
 
 function handleClick() {
   if (longPressed) { longPressed = false; return }
-  router.push({ path: '/feed', query: { id: props.video.video_id } })
+  router.push({ path: '/feed', query: { id: props.video.video_id, order_by: props.orderBy } })
 }
 
 function onTouchStart() {
