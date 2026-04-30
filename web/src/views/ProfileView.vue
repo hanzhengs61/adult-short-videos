@@ -106,14 +106,6 @@
               </svg>
               上传视频
             </button>
-            <button @click="showHistory"
-                    class="flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg border border-border
-                     text-text-secondary text-xs font-medium hover:border-border-light hover:text-text-primary transition-all">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-              </svg>
-              历史
-            </button>
           </div>
         </div>
       </div>
@@ -330,26 +322,14 @@
                 <p class="text-text-muted text-xs mt-1">支持 MP4、AVI、MOV，最大 2GB</p>
               </div>
 
-              <div class="grid grid-cols-2 gap-3">
-                <div>
-                  <label class="block text-xs text-text-muted mb-1.5">视频标题 *</label>
-                  <input v-model="uploadForm.title" class="input-base text-sm" placeholder="请输入标题"/>
-                </div>
-                <div>
-                  <label class="block text-xs text-text-muted mb-1.5">分类</label>
-                  <select v-model="uploadForm.category" class="input-base text-sm cursor-pointer">
-                    <option value="">请选择</option>
-                    <option value="japan">日本</option>
-                    <option value="western">欧美</option>
-                    <option value="chinese">国产</option>
-                    <option value="asian">亚洲</option>
-                  </select>
-                </div>
+              <div>
+                <label class="block text-xs text-text-muted mb-1.5">视频标题 *</label>
+                <input v-model="uploadForm.title" class="input-base text-sm" placeholder="请输入标题"/>
               </div>
 
               <div>
                 <label class="block text-xs text-text-muted mb-1.5">标签（逗号分隔）</label>
-                <input v-model="uploadForm.tags" class="input-base text-sm" placeholder="如：中文字幕, 无码, 美乳"/>
+                <input v-model="uploadForm.tags" class="input-base text-sm" placeholder="如：丝袜,巨乳,御姐"/>
               </div>
 
               <button @click="submitUpload" class="btn-primary w-full py-3 text-sm font-bold">
@@ -392,7 +372,7 @@ const stats = ref({videoCount: 0, totalPlays: 0, followers: 0, following: 0})
 const editForm = ref({username: '', bio: ''})
 const passwordForm = ref({current: '', newPwd: '', confirm: ''})
 const emailForm = ref({newEmail: '', password: ''})
-const uploadForm = ref({title: '', category: '', tags: ''})
+const uploadForm = ref({title: '', tags: ''})
 
 const editTabs = [
   {label: '基本资料', value: 'profile'},
@@ -478,10 +458,6 @@ function submitUpload() {
   // TODO: POST /api/video/upload
   alert('功能即将上线，敬请期待！')
   uploadModal.value = false
-}
-
-function showHistory() {
-  activeTab.value = 'favorites'
 }
 
 watch(activeTab, loadTabData)
