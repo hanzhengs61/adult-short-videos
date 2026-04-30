@@ -12,13 +12,18 @@ request.interceptors.request.use(config => {
 })
 
 request.interceptors.response.use(
-    res => res.data,
+    res => {
+        if (res.data.code !== 200) {
+            return Promise.reject(new Error(res.data.msg || '请求失败'))
+        }
+        return res.data
+    },
     err => {
         if (err.response?.status === 401) {
             localStorage.removeItem('access_token')
             window.location.href = '/login'
         }
-        return Promise.reject(err.response?.data || err)
+        return Promise.reject(new Error(err.response?.data?.msg || err.message || '请求失败'))
     }
 )
 

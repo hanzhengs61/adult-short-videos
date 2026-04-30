@@ -53,10 +53,6 @@
                     </svg>
                   </button>
                 </div>
-                <div v-if="errorMsg"
-                     class="text-xs text-red-400 bg-red-400/10 border border-red-400/20 rounded-lg px-3 py-2">
-                  {{ errorMsg }}
-                </div>
                 <button type="submit" :disabled="submitting"
                         class="btn-primary w-full py-3 disabled:opacity-60 disabled:cursor-not-allowed
                          disabled:hover:scale-100 disabled:hover:shadow-none">
@@ -90,10 +86,6 @@
                        :class="['h-1 flex-1 rounded-full transition-colors duration-300',
                       pwdStrength >= i ? strengthColor : 'bg-border']"></div>
                 </div>
-                <div v-if="errorMsg"
-                     class="text-xs text-red-400 bg-red-400/10 border border-red-400/20 rounded-lg px-3 py-2">
-                  {{ errorMsg }}
-                </div>
                 <button type="submit" :disabled="submitting"
                         class="btn-primary w-full py-3 disabled:opacity-60 disabled:cursor-not-allowed
                          disabled:hover:scale-100 disabled:hover:shadow-none">
@@ -118,12 +110,13 @@
 <script setup>
 import {computed, ref} from 'vue'
 import {useUserStore} from '@/stores/user'
+import {useToastStore} from '@/stores/toast'
 import {userApi} from '@/api'
 
 const userStore = useUserStore()
+const toastStore = useToastStore()
 const showPwd = ref(false)
 const submitting = ref(false)
-const errorMsg = ref('')
 
 const loginForm = ref({username: '', password: ''})
 const regForm = ref({username: '', email: '', password: ''})
@@ -146,26 +139,24 @@ const strengthColor = computed(() => {
 })
 
 async function handleLogin() {
-  errorMsg.value = ''
   submitting.value = true
   try {
     await userStore.login(loginForm.value)
-    loginForm.value = {username: '', password: ''}
+    loginForm.value = { username: '', password: '' }
   } catch (err) {
-    errorMsg.value = err?.message || '用户名或密码错误'
+    toastStore.show(err.message)
   }
   submitting.value = false
 }
 
 async function handleRegister() {
-  errorMsg.value = ''
   submitting.value = true
   try {
     await userApi.register(regForm.value)
-    await userStore.login({username: regForm.value.username, password: regForm.value.password})
-    regForm.value = {username: '', email: '', password: ''}
+    toastStore.show('注册成功，请登录', 'success')
+    userStore.switchAuthMode('login')
   } catch (err) {
-    errorMsg.value = err?.message || '注册失败，请稍后重试'
+    toastStore.show(err.message)
   }
   submitting.value = false
 }

@@ -59,6 +59,9 @@
 
   <!-- 全局登录/注册弹窗 -->
   <AuthModal/>
+
+  <!-- 全局 Toast 通知 -->
+  <Toast/>
 </template>
 
 <script setup>
@@ -67,6 +70,7 @@ import { useRoute } from 'vue-router'
 import NavBar from '@/components/common/NavBar.vue'
 import BottomNav from '@/components/common/BottomNav.vue'
 import AuthModal from '@/components/common/AuthModal.vue'
+import Toast from '@/components/common/Toast.vue'
 import { useUserStore } from '@/stores/user'
 
 const userStore = useUserStore()

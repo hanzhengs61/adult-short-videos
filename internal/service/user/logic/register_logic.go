@@ -67,8 +67,8 @@ func (l *RegisterLogic) Register(req *RegisterReq) (*RegisterResp, error) {
 	// 检查用户名是否已存在
 	existingUser, err := l.userRepo.FindByUsername(l.ctx, req.Username)
 	if err != nil && err != gorm.ErrRecordNotFound {
-		logger.Error("查询用户失败", zap.Error(err), zap.String("username", req.Username))
-		return nil, errors.ErrServerError
+		logger.Error("用户已存在", zap.Error(err), zap.String("username", req.Username))
+		return nil, errors.ErrUserExists
 	}
 
 	if existingUser != nil {
@@ -78,8 +78,8 @@ func (l *RegisterLogic) Register(req *RegisterReq) (*RegisterResp, error) {
 	// 检查邮箱是否已被使用
 	existingEmail, err := l.userRepo.FindByEmail(l.ctx, req.Email)
 	if err != nil && err != gorm.ErrRecordNotFound {
-		logger.Error("查询邮箱失败", zap.Error(err), zap.String("email", req.Email))
-		return nil, errors.ErrServerError
+		logger.Error("邮箱已被注册", zap.Error(err), zap.String("email", req.Email))
+		return nil, errors.ErrEmailExists
 	}
 
 	if existingEmail != nil {

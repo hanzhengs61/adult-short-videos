@@ -164,6 +164,7 @@ func parseAndUpsert(db *gorm.DB, client *http.Client, htmlStr string) int {
 		if title == "" {
 			return
 		}
+		title = strings.ReplaceAll(title, "123av.fun", "蜜臀69")
 		coverURL := strings.TrimSpace(s.AttrOr("data-poster", ""))
 		sourceURL := strings.TrimSpace(s.AttrOr("data-src", ""))
 		if sourceURL == "" {
