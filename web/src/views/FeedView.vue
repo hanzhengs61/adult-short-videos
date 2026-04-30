@@ -325,7 +325,7 @@ async function fetchMore() {
   if (loading.value || !hasMore.value) return
   loading.value = true
   try {
-    const pageSize = 10
+    const pageSize = 20
     const res = await videoApi.list({ page: page.value, page_size: pageSize, order_by: orderBy })
     const rawList = res.data?.videos || []
     const list = rawList
@@ -359,11 +359,8 @@ function onContainerScroll() {
 onMounted(async () => {
   const pageSize = 10
 
-  // 先做页面初始化：尽量找到 startId 在当前排序列表里的真实索引。
-  // 之前仅请求第一页会导致 startId 落在第 11 条以后仍无法定位，从而错误回到 index=0。
   if (startIdRaw) {
-    // 最多向后查找 N 页，通常第11条在第2页即可命中。
-    const maxSearchPages = 3
+    const maxSearchPages = 50
     let foundIdx = -1
     let currentPage = 1
     let lastRawLen = 0
@@ -392,8 +389,7 @@ onMounted(async () => {
     hasMore.value = lastRawLen >= pageSize
 
     if (foundIdx < 0) {
-      // 兜底：仍然找不到就降级为播放第一页的第一个（避免之前把目标强行塞到 index=0）
-      foundIdx = 0
+      return
     }
 
     await nextTick()
