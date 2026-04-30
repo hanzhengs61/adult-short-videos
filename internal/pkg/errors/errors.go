@@ -6,39 +6,52 @@ import (
 )
 
 // 错误码定义
+/**
+通用错误 200...
+数据库错误: 1xxx
+用户错误: 2xxx
+视频错误: 3xxx
+评论错误: 4xxx
+收藏错误: 5xxx
+搜索错误: 6xxx
+**/
 const (
-	CodeSuccess         = 200
-	CodeInvalidParam    = 400
-	CodeUnauthorized    = 401
-	CodeForbidden       = 403
-	CodeNotFound        = 404
-	CodeTooManyRequests = 429
-	CodeServerError     = 500
+	CodeSuccess         = 200 // 成功
+	CodeInvalidParam    = 400 // 参数错误
+	CodeUnauthorized    = 401 // 未授权
+	CodeForbidden       = 403 // 拒绝访问
+	CodeNotFound        = 404 // 资源不存在
+	CodeTooManyRequests = 429 // 请求过于频繁
+	CodeServerError     = 500 // 服务器错误
 
-	// CodeDatabaseError 数据库错误 1xxx
-	CodeDatabaseError = 1001
-	CodeCacheError    = 1002
+	CodeDatabaseError = 1001 // 数据库错误
+	CodeCacheError    = 1002 // 缓存错误
 
 	// CodeUserExists 用户错误 2xxx
-	CodeUserExists    = 2001
-	CodeUserNotFound  = 2002
-	CodePasswordError = 2003
-	CodeTokenInvalid  = 2004
-	CodeTokenExpired  = 2005
-	CodeEmailExists   = 2006
-	CodeEncryptError  = 2007
+	CodeUserExists    = 2001 // 用户已存在
+	CodeUserNotFound  = 2002 // 用户不存在
+	CodePasswordError = 2003 // 密码错误
+	CodeTokenInvalid  = 2004 // token 无效
+	CodeTokenExpired  = 2005 // token 过期
+	CodeEmailExists   = 2006 // 邮箱已存在
+	CodeEncryptError  = 2007 // 加密错误
+	CodeUserDisabled  = 2008 // 用户被禁用
 
-	// CodeVideoNotFound 视频错误 3xxx
-	CodeVideoNotFound = 3001
-	CodeVideoOffline  = 3002
+	CodeVideoNotFound = 3001 // 视频不存在
+	CodeVideoOffline  = 3002 // 视频已下架
 
-	// CodeAlreadyFavorite 收藏错误 4xxx
-	CodeAlreadyFavorite = 4001
-	CodeNotFavorite     = 4002
+	CodeAlreadyFavorite = 4001 // 已经收藏了
+	CodeNotFavorite     = 4002 // 未收藏
 
-	// CodeCommentTooLong 评论错误 5xxx
-	CodeCommentTooLong = 5001
-	CodeAlreadyLiked   = 5002
+	CodeCommentTooLong      = 5001 // 评论内容过长
+	CodeAlreadyLiked        = 5002 // 已经点赞评论了
+	CodeCommentEmpty        = 5003 // 评论为空
+	CodeCommentFailed       = 5004 // 评论失败
+	CodeCommentListFailed   = 5005 // 查询评论列表失败
+	CodeLikeCommentFailed   = 5007 // 评论点赞失败
+	CodeNotLiked            = 5008 // 未点赞该评论
+	CodeUnlikeCommentFailed = 5009 // 取消点赞失败
+
 )
 
 // BizError 业务错误
@@ -76,28 +89,6 @@ var (
 	ErrNotFound        = New(CodeNotFound, "资源不存在")
 	ErrTooManyRequests = New(CodeTooManyRequests, "请求过于频繁")
 	ErrServerError     = New(CodeServerError, "服务器错误")
-
-	// ErrUserExists 用户错误
-	ErrUserExists    = New(CodeUserExists, "用户已存在")
-	ErrUserNotFound  = New(CodeUserNotFound, "用户不存在")
-	ErrPasswordError = New(CodePasswordError, "密码错误")
-	ErrTokenInvalid  = New(CodeTokenInvalid, "Token无效")
-	ErrTokenExpired  = New(CodeTokenExpired, "Token已过期")
-	ErrEmailExists   = New(CodeEmailExists, "邮箱已被注册")
-	ErrEncryptError  = New(CodeEncryptError, "密码加密失败")
-	ErrUserDisabled  = New(CodeUserExists, "账号已被禁用")
-
-	// ErrVideoNotFound 视频错误
-	ErrVideoNotFound = New(CodeVideoNotFound, "视频不存在")
-	ErrVideoOffline  = New(CodeVideoOffline, "视频已下架")
-
-	// ErrAlreadyFavorite 收藏错误
-	ErrAlreadyFavorite = New(CodeAlreadyFavorite, "已收藏")
-	ErrNotFavorite     = New(CodeNotFavorite, "未收藏")
-
-	// ErrCommentTooLong 评论错误
-	ErrCommentTooLong = New(CodeCommentTooLong, "评论内容过长")
-	ErrAlreadyLiked   = New(CodeAlreadyLiked, "已点赞")
 )
 
 // IsBizError 判断是否为业务错误

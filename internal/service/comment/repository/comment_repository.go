@@ -21,7 +21,7 @@ type CommentRepository interface {
 	// Delete 删除评论
 	Delete(ctx context.Context, commentId, userId int64) error
 
-	// Delete 点赞评论
+	// LikeComment 点赞评论
 	LikeComment(ctx context.Context, commentId, userId int64) error
 
 	// UnlikeComment 取消点赞

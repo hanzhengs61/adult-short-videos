@@ -62,11 +62,11 @@ func (l *LoginLogic) Login(req *LoginReq) (*LoginResp, error) {
 	if err != nil && err != gorm.ErrRecordNotFound {
 		// 如果是"记录不存在"错误，说明用户名不存在
 		metrics.UserLoginsTotal.WithLabelValues("false").Inc()
-		return nil, errors.ErrUserNotFound
+		return nil, errors.New(errors.CodeUserNotFound, "用户不存在")
 	}
 
 	if user == nil {
-		return nil, errors.ErrUserNotFound
+		return nil, errors.New(errors.CodeUserNotFound, "用户不存在")
 	}
 
 	// 2: 验证密码
@@ -75,13 +75,13 @@ func (l *LoginLogic) Login(req *LoginReq) (*LoginResp, error) {
 		// 记录登录失败日志
 		l.recordLoginLog(user.UserId, "password", false, "密码错误", req.ClientIP, req.UserAgent)
 		metrics.UserLoginsTotal.WithLabelValues("false").Inc()
-		return nil, errors.ErrPasswordError
+		return nil, errors.New(errors.CodePasswordError, "密码错误")
 	}
 
 	// 3: 检查账号状态
 	if user.Status != 1 {
 		metrics.UserLoginsTotal.WithLabelValues("false").Inc()
-		return nil, errors.ErrUserDisabled
+		return nil, errors.New(errors.CodeUserDisabled, "账号已被禁用")
 	}
 
 	// 4: 更新最后登录信息
@@ -101,7 +101,7 @@ func (l *LoginLogic) Login(req *LoginReq) (*LoginResp, error) {
 		l.jwtExpire,
 	)
 	if err != nil {
-		return nil, errors.ErrTokenInvalid
+		return nil, errors.New(errors.CodeTokenInvalid, "Token生成失败")
 	}
 
 	refreshToken, err := utils.GenerateToken(
@@ -111,7 +111,7 @@ func (l *LoginLogic) Login(req *LoginReq) (*LoginResp, error) {
 		l.jwtExpire*7,
 	)
 	if err != nil {
-		return nil, errors.ErrTokenInvalid
+		return nil, errors.New(errors.CodeTokenInvalid, "Token生成失败")
 	}
 
 	return &LoginResp{

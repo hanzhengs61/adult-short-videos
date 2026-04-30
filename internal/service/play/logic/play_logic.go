@@ -1,15 +1,16 @@
 package logic
 
 import (
+	"adult-short-videos/internal/pkg/errors"
 	"adult-short-videos/internal/pkg/metrics"
 	"adult-short-videos/internal/service/play/model"
 	"adult-short-videos/internal/service/play/repository"
 	videoRepo "adult-short-videos/internal/service/video/repository"
 	"context"
-	"errors"
 	"log"
 	"time"
 
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
@@ -41,11 +42,8 @@ type RecordPlayReq struct {
 func (l *RecordPlayLogic) RecordPlay(userId int64, req *RecordPlayReq) error {
 	// 检查视频是否存在
 	_, err := l.videoRepo.FindByID(l.ctx, req.VideoId)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("视频不存在")
-		}
-		return errors.New("查询视频失败")
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return errors.New(errors.CodeDatabaseError, "视频不存在")
 	}
 
 	// 参数校验
@@ -62,14 +60,14 @@ func (l *RecordPlayLogic) RecordPlay(userId int64, req *RecordPlayReq) error {
 	}
 
 	if err := l.playRepo.CreateOrUpdate(l.ctx, history); err != nil {
-		return errors.New("记录播放历史失败")
+		return errors.New(errors.CodeDatabaseError, "记录播放历史失败")
 	}
 
 	// 异步更新视频播放次数
 	go func() {
 		err := l.videoRepo.IncrementPlayCount(context.Background(), req.VideoId)
 		if err != nil {
-			log.Println("更新视频播放次数失败:", err)
+			log.Println("更新视频播放次数失败:", zap.Error(err))
 		}
 	}()
 
@@ -133,7 +131,7 @@ func (l *PlayHistoryListLogic) GetPlayHistoryList(userId int64, req *PlayHistory
 	// 查询播放历史
 	history, total, err := l.playRepo.ListWithVideo(l.ctx, userId, offset, req.Size)
 	if err != nil {
-		return nil, errors.New("查询播放历史失败")
+		return nil, errors.New(errors.CodeDatabaseError, "查询播放历史失败")
 	}
 
 	return &PlayHistoryListResp{

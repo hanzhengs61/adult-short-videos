@@ -11,7 +11,6 @@ import (
 	"context"
 
 	"go.uber.org/zap"
-	"gorm.io/gorm"
 )
 
 // RegisterLogic 注册业务逻辑
@@ -66,30 +65,30 @@ func (l *RegisterLogic) Register(req *RegisterReq) (*RegisterResp, error) {
 
 	// 检查用户名是否已存在
 	existingUser, err := l.userRepo.FindByUsername(l.ctx, req.Username)
-	if err != nil && err != gorm.ErrRecordNotFound {
+	if err != nil {
 		logger.Error("用户已存在", zap.Error(err), zap.String("username", req.Username))
-		return nil, errors.ErrUserExists
+		return nil, errors.New(errors.CodeUserExists, "用户已存在")
 	}
 
 	if existingUser != nil {
-		return nil, errors.ErrUserExists
+		return nil, errors.New(errors.CodeUserExists, "用户已存在")
 	}
 
 	// 检查邮箱是否已被使用
 	existingEmail, err := l.userRepo.FindByEmail(l.ctx, req.Email)
-	if err != nil && err != gorm.ErrRecordNotFound {
+	if err != nil {
 		logger.Error("邮箱已被注册", zap.Error(err), zap.String("email", req.Email))
-		return nil, errors.ErrEmailExists
+		return nil, errors.New(errors.CodeEmailExists, "邮箱已被注册")
 	}
 
 	if existingEmail != nil {
-		return nil, errors.ErrEmailExists
+		return nil, errors.New(errors.CodeEmailExists, "邮箱已被注册")
 	}
 
 	// 3: 密码加密
 	hashedPassword, err := utils.PasswordHash(req.Password)
 	if err != nil {
-		return nil, errors.ErrEncryptError
+		return nil, errors.New(errors.CodeEncryptError, "密码加密失败")
 	}
 
 	// 4: 创建用户

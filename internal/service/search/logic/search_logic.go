@@ -1,8 +1,8 @@
 package logic
 
 import (
+	"adult-short-videos/internal/pkg/errors"
 	"context"
-	"errors"
 
 	"adult-short-videos/internal/pkg/metrics"
 	"adult-short-videos/internal/service/search/repository"
@@ -49,7 +49,7 @@ type SearchResp struct {
 
 func (l *SearchLogic) Search(req *SearchReq) (*SearchResp, error) {
 	if req.Keyword == "" {
-		return nil, errors.New("搜索关键词不能为空")
+		return nil, errors.New(errors.CodeInvalidParam, "搜索关键词为空")
 	}
 	if req.Page < 1 {
 		req.Page = 1
@@ -71,7 +71,7 @@ func (l *SearchLogic) Search(req *SearchReq) (*SearchResp, error) {
 
 	videos, total, err := l.searchRepo.SearchVideos(l.ctx, req.Keyword, offset, req.Size, filters)
 	if err != nil {
-		return nil, errors.New("搜索失败")
+		return nil, errors.New(errors.CodeDatabaseError, "搜索失败")
 	}
 
 	items := make([]VideoSearchItem, 0, len(videos))

@@ -1,13 +1,15 @@
 package logic
 
 import (
+	"adult-short-videos/internal/pkg/errors"
+	"adult-short-videos/internal/pkg/logger"
 	"adult-short-videos/internal/pkg/metrics"
 	"adult-short-videos/internal/service/favorite/model"
 	"adult-short-videos/internal/service/favorite/repository"
 	videoRepo "adult-short-videos/internal/service/video/repository"
 	"context"
-	"errors"
 
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
@@ -43,26 +45,29 @@ type AddFavoriteReq struct {
 func (l *AddFavoriteLogic) AddFavorite(userId int64, req *AddFavoriteReq) error {
 	// 检查视频是否存在
 	video, err := l.videoRepo.FindByID(l.ctx, req.VideoId)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("视频不存在")
-		}
-		return errors.New("查询视频失败")
+	if err != nil && err != gorm.ErrRecordNotFound {
+		logger.Error("视频不存在", zap.Error(err))
+		return errors.New(errors.CodeDatabaseError, "视频不存在")
+	}
+
+	if video == nil {
+		logger.Error("视频不存在", zap.Error(err))
+		return errors.New(errors.CodeVideoNotFound, "视频不存在")
 	}
 
 	// 检查视频状态
 	if video.Status != 1 {
-		return errors.New("视频已下架")
+		return errors.New(errors.CodeVideoOffline, "视频已下架")
 	}
 
 	// 检查是否已收藏
 	exists, err := l.favoriteRepo.Exists(l.ctx, userId, req.VideoId)
 	if err != nil {
-		return errors.New("检查收藏状态失败")
+		return errors.New(errors.CodeDatabaseError, "检查收藏状态失败")
 	}
 
 	if exists {
-		return errors.New("已经收藏过了")
+		return errors.New(errors.CodeAlreadyFavorite, "已经收藏过了")
 	}
 
 	// 创建收藏记录
@@ -72,7 +77,7 @@ func (l *AddFavoriteLogic) AddFavorite(userId int64, req *AddFavoriteReq) error 
 	}
 
 	if err := l.favoriteRepo.Create(l.ctx, favorite); err != nil {
-		return errors.New("收藏失败")
+		return errors.New(errors.CodeDatabaseError, "收藏失败")
 	}
 
 	// 更新视频的收藏数
@@ -112,16 +117,16 @@ func (l *RemoveFavoriteLogic) RemoveFavorite(userId, videoId int64) error {
 	// 检查是否已收藏
 	exists, err := l.favoriteRepo.Exists(l.ctx, userId, videoId)
 	if err != nil {
-		return errors.New("检查收藏状态失败")
+		return errors.New(errors.CodeDatabaseError, "检查收藏状态失败")
 	}
 
 	if !exists {
-		return errors.New("未收藏过此视频")
+		return errors.New(errors.CodeNotFavorite, "未收藏过此视频")
 	}
 
 	// 删除收藏记录
 	if err := l.favoriteRepo.Delete(l.ctx, userId, videoId); err != nil {
-		return errors.New("取消收藏失败")
+		return errors.New(errors.CodeDatabaseError, "取消收藏失败")
 	}
 
 	// 更新视频的收藏数
@@ -187,7 +192,7 @@ func (l *FavoriteListLogic) GetFavoriteList(userId int64, req *FavoriteListReq) 
 	// 查询收藏列表
 	favorites, total, err := l.favoriteRepo.ListWithVideo(l.ctx, userId, offset, req.Size)
 	if err != nil {
-		return nil, errors.New("查询收藏列表失败")
+		return nil, errors.New(errors.CodeDatabaseError, "查询收藏列表失败")
 	}
 
 	// 返回结果

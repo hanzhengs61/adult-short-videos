@@ -1,10 +1,10 @@
 package logic
 
 import (
+	"adult-short-videos/internal/pkg/errors"
 	"adult-short-videos/internal/pkg/logger"
 	"adult-short-videos/internal/pkg/metrics"
 	"context"
-	"errors"
 	"strings"
 
 	"adult-short-videos/internal/service/comment/model"
@@ -45,22 +45,19 @@ func (l *AddCommentLogic) AddComment(userId int64, req *AddCommentReq) (*model.C
 	content := strings.TrimSpace(req.Content)
 	if content == "" {
 		logger.Error("评论内容不能为空")
-		return nil, errors.New("评论内容不能为空")
+		return nil, errors.New(errors.CodeCommentEmpty, "评论内容不能为空")
 	}
 
 	if len(content) > 500 {
 		logger.Error("评论内容不能超过500字")
-		return nil, errors.New("评论内容不能超过500字")
+		return nil, errors.New(errors.CodeCommentTooLong, "评论内容不能超过500字")
 	}
 
 	// 检查视频是否存在
 	_, err := l.videoRepo.FindByID(l.ctx, req.VideoId)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			logger.Error("视频不存在", zap.Error(err))
-			return nil, errors.New("视频不存在")
-		}
-		return nil, errors.New("查询视频失败")
+	if err != nil && err != gorm.ErrRecordNotFound {
+		logger.Error("视频不存在", zap.Error(err))
+		return nil, errors.New(errors.CodeVideoNotFound, "视频不存在")
 	}
 
 	// 创建评论
@@ -74,7 +71,7 @@ func (l *AddCommentLogic) AddComment(userId int64, req *AddCommentReq) (*model.C
 
 	if err := l.commentRepo.Create(l.ctx, comment); err != nil {
 		logger.Error("发表评论失败", zap.Error(err))
-		return nil, errors.New("发表评论失败")
+		return nil, errors.New(errors.CodeCommentFailed, "发表评论失败")
 	}
 
 	// 异步更新视频评论数
@@ -134,7 +131,8 @@ func (l *CommentListLogic) GetCommentList(req *CommentListReq) (*CommentListResp
 	// 查询评论列表
 	comments, total, err := l.commentRepo.ListWithUser(l.ctx, req.VideoId, offset, req.Size)
 	if err != nil {
-		return nil, errors.New("查询评论列表失败")
+
+		return nil, errors.New(errors.CodeDatabaseError, "查询评论列表失败")
 	}
 
 	return &CommentListResp{
@@ -163,21 +161,21 @@ func (l *LikeCommentLogic) LikeComment(userId, commentId int64) error {
 	// 检查是否已点赞
 	isLiked, err := l.commentRepo.IsLiked(l.ctx, commentId, userId)
 	if err != nil {
-		return errors.New("检查点赞状态失败")
+		return errors.New(errors.CodeDatabaseError, "检查点赞状态失败")
 	}
 
 	if isLiked {
-		return errors.New("已经点赞过了")
+		return errors.New(errors.CodeAlreadyLiked, "已经点赞过了")
 	}
 
 	// 点赞
 	if err := l.commentRepo.LikeComment(l.ctx, commentId, userId); err != nil {
-		return errors.New("点赞失败")
+		return errors.New(errors.CodeDatabaseError, "点赞失败")
 	}
 
 	// 增加点赞数
 	go func() {
-		l.commentRepo.IncrementLikeCount(context.Background(), commentId)
+		_ = l.commentRepo.IncrementLikeCount(context.Background(), commentId)
 	}()
 
 	metrics.CommentsTotal.WithLabelValues("like").Inc()
@@ -189,21 +187,22 @@ func (l *LikeCommentLogic) UnlikeComment(userId, commentId int64) error {
 	// 检查是否已点赞
 	isLiked, err := l.commentRepo.IsLiked(l.ctx, commentId, userId)
 	if err != nil {
-		return errors.New("检查点赞状态失败")
+		return errors.New(errors.CodeDatabaseError, "检查点赞状态失败")
 	}
 
 	if !isLiked {
-		return errors.New("未点赞过该评论")
+		return errors.New(errors.CodeNotLiked, "未点赞过该评论")
 	}
 
 	// 取消点赞
 	if err := l.commentRepo.UnlikeComment(l.ctx, commentId, userId); err != nil {
-		return errors.New("取消点赞失败")
+		return errors.New(errors.CodeDatabaseError, "取消点赞失败")
+
 	}
 
 	// 减少点赞数
 	go func() {
-		l.commentRepo.DecrementLikeCount(context.Background(), commentId)
+		_ = l.commentRepo.DecrementLikeCount(context.Background(), commentId)
 	}()
 
 	metrics.CommentsTotal.WithLabelValues("unlike").Inc()
