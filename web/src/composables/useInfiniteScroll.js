@@ -14,9 +14,12 @@ export function useInfiniteScroll(fetchFn) {
         try {
             const more = await fetchFn()
             if (more === false) hasMore.value = false
-        } catch {
+        } catch (error) { // 捕获错误
+            console.error('useInfiniteScroll fetchFn failed:', error) // 打印错误
+            // 即使发生错误，也应该重置 loading 状态，以便可以再次尝试加载
+        } finally {
+            loading.value = false // 确保无论成功或失败都重置 loading 状态
         }
-        loading.value = false
     }
 
     function reset() {

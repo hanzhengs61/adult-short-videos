@@ -2,10 +2,12 @@ package logic
 
 import (
 	"adult-short-videos/internal/pkg/errors"
+	"adult-short-videos/internal/pkg/logger"
 	"adult-short-videos/internal/service/video/dto"
 	"adult-short-videos/internal/service/video/repository"
 	"context"
 
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
@@ -39,6 +41,8 @@ func (s *VideoService) GetVideoList(ctx context.Context, req *dto.VideoListReq) 
 	offset := (req.Page - 1) * req.Size
 	videos, total, err := s.videoRepo.List(ctx, offset, req.Size, filters)
 	if err != nil {
+		// 记录详细错误信息
+		logger.Error("查询视频列表失败", zap.Error(err), zap.Any("filters", filters))
 		return nil, errors.New(errors.CodeVideoNotFound, "查询视频列表失败")
 	}
 
@@ -74,6 +78,7 @@ func (s *VideoService) GetVideoDetail(ctx context.Context, videoId int64) (*dto.
 		if err == gorm.ErrRecordNotFound {
 			return nil, errors.New(errors.CodeVideoNotFound, "视频不存在")
 		}
+		logger.Error("查询视频详情失败", zap.Error(err), zap.Int64("videoId", videoId))
 		return nil, errors.New(errors.CodeDatabaseError, "查询视频失败")
 	}
 
@@ -104,6 +109,7 @@ func (s *VideoService) GetVideoDetail(ctx context.Context, videoId int64) (*dto.
 func (s *VideoService) GetHotVideos(ctx context.Context, limit int) ([]dto.VideoItem, error) {
 	videos, err := s.videoRepo.GetHotVideos(ctx, limit)
 	if err != nil {
+		logger.Error("查询热门视频失败", zap.Error(err), zap.Int("limit", limit))
 		return nil, errors.New(errors.CodeDatabaseError, "查询热门视频失败")
 	}
 

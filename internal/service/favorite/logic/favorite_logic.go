@@ -49,9 +49,11 @@ func (s *FavoriteService) AddFavorite(ctx context.Context, userId int64, req *dt
 	// 检查是否已收藏
 	exists, err := s.favoriteRepo.Exists(ctx, userId, req.VideoId)
 	if err != nil {
+		logger.Error("检查收藏状态失败", zap.Error(err))
 		return errors.New(errors.CodeDatabaseError, "检查收藏状态失败")
 	}
 	if exists {
+		logger.Warn("用户已经收藏过此视频")
 		return errors.New(errors.CodeAlreadyFavorite, "已经收藏过了")
 	}
 
@@ -61,6 +63,7 @@ func (s *FavoriteService) AddFavorite(ctx context.Context, userId int64, req *dt
 		VideoId: req.VideoId,
 	}
 	if err := s.favoriteRepo.Create(ctx, favorite); err != nil {
+		logger.Error("创建收藏记录失败", zap.Error(err))
 		return errors.New(errors.CodeDatabaseError, "收藏失败")
 	}
 
@@ -77,13 +80,16 @@ func (s *FavoriteService) AddFavorite(ctx context.Context, userId int64, req *dt
 func (s *FavoriteService) RemoveFavorite(ctx context.Context, userId, videoId int64) error {
 	exists, err := s.favoriteRepo.Exists(ctx, userId, videoId)
 	if err != nil {
+		logger.Error("检查收藏状态失败", zap.Error(err))
 		return errors.New(errors.CodeDatabaseError, "检查收藏状态失败")
 	}
 	if !exists {
+		logger.Warn("用户未收藏过此视频")
 		return errors.New(errors.CodeNotFavorite, "未收藏过此视频")
 	}
 
 	if err := s.favoriteRepo.Delete(ctx, userId, videoId); err != nil {
+		logger.Error("取消收藏失败", zap.Error(err))
 		return errors.New(errors.CodeDatabaseError, "取消收藏失败")
 	}
 
@@ -110,6 +116,7 @@ func (s *FavoriteService) GetFavoriteList(ctx context.Context, userId int64, req
 	offset := (req.Page - 1) * req.Size
 	favorites, total, err := s.favoriteRepo.ListWithVideo(ctx, userId, offset, req.Size)
 	if err != nil {
+		logger.Error("查询收藏列表失败", zap.Error(err))
 		return nil, errors.New(errors.CodeDatabaseError, "查询收藏列表失败")
 	}
 

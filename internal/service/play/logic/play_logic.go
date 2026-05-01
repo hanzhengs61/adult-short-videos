@@ -2,6 +2,7 @@ package logic
 
 import (
 	"adult-short-videos/internal/pkg/errors"
+	"adult-short-videos/internal/pkg/logger"
 	"adult-short-videos/internal/pkg/metrics"
 	"adult-short-videos/internal/service/play/dto"
 	"adult-short-videos/internal/service/play/model"
@@ -10,6 +11,7 @@ import (
 	"context"
 	"time"
 
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
@@ -35,8 +37,10 @@ func (s *PlayService) RecordPlay(ctx context.Context, userId int64, req *dto.Rec
 	_, err := s.videoRepo.FindByID(ctx, req.VideoId)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
+			logger.Error("视频不存在", zap.Error(err))
 			return errors.New(errors.CodeVideoNotFound, "视频不存在")
 		}
+		logger.Error("数据库查询失败", zap.Error(err))
 		return errors.New(errors.CodeDatabaseError, "数据库查询失败")
 	}
 
@@ -54,6 +58,7 @@ func (s *PlayService) RecordPlay(ctx context.Context, userId int64, req *dto.Rec
 	}
 
 	if err := s.playRepo.CreateOrUpdate(ctx, history); err != nil {
+		logger.Error("记录播放历史失败", zap.Error(err))
 		return errors.New(errors.CodeDatabaseError, "记录播放历史失败")
 	}
 
@@ -92,6 +97,7 @@ func (s *PlayService) GetPlayHistory(ctx context.Context, userId int64, req *dto
 	offset := (req.Page - 1) * req.Size
 	history, total, err := s.playRepo.ListWithVideo(ctx, userId, offset, req.Size)
 	if err != nil {
+		logger.Error("查询播放历史失败", zap.Error(err))
 		return nil, errors.New(errors.CodeDatabaseError, "查询播放历史失败")
 	}
 
@@ -107,6 +113,7 @@ func (s *PlayService) GetPlayHistory(ctx context.Context, userId int64, req *dto
 func (s *PlayService) ClearPlayHistory(ctx context.Context, i int64) error {
 	err := s.playRepo.DeleteAll(ctx, i)
 	if err != nil {
+		logger.Error("清空播放历史失败", zap.Error(err))
 		return errors.New(errors.CodeDatabaseError, "清空播放历史失败")
 	}
 	return nil

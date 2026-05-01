@@ -42,8 +42,8 @@ func (r *videoRepository) FindByID(ctx context.Context, videoId int64) (*model.V
 				WHERE c.video_id = videos.video_id
 					AND c.parent_id = 0
 					AND c.status = 1
-			) AS comment_count
-		`).
+			) AS comment_count_alias
+		`). // 给子查询的 comment_count 添加别名
 		Where("video_id = ? AND status = 1", videoId).
 		First(&video).Error
 
@@ -63,8 +63,10 @@ func (r *videoRepository) List(ctx context.Context, offset, limit int, filters m
 	orderCol := "created_at"
 	if col, ok := filters["order_by"].(string); ok {
 		switch col {
-		case "play_count", "comment_count", "favorite_count", "created_at":
+		case "play_count", "favorite_count", "created_at":
 			orderCol = col
+		case "comment_count":
+			orderCol = "comment_count_alias"
 		}
 	}
 
@@ -81,7 +83,7 @@ func (r *videoRepository) List(ctx context.Context, offset, limit int, filters m
 				WHERE c.video_id = videos.video_id
 					AND c.parent_id = 0
 					AND c.status = 1
-			) AS comment_count
+			) AS comment_count_alias
 		`).
 		Order(orderCol + " DESC").
 		Offset(offset).
@@ -104,7 +106,7 @@ func (r *videoRepository) GetHotVideos(ctx context.Context, limit int) ([]*model
 				WHERE c.video_id = v.video_id
 					AND c.parent_id = 0
 					AND c.status = 1
-			) AS comment_count
+			) AS comment_count_alias
 		`).
 		Joins("INNER JOIN video_heat_stats h ON v.video_id = h.video_id").
 		Where("h.is_hot = ? AND v.status = 1", true).

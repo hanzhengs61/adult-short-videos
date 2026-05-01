@@ -2,12 +2,15 @@ package logic
 
 import (
 	"adult-short-videos/internal/pkg/errors"
+	"adult-short-videos/internal/pkg/logger"
 	"context"
 
 	"adult-short-videos/internal/pkg/metrics"
 	"adult-short-videos/internal/service/search/dto"
 	"adult-short-videos/internal/service/search/repository"
 	videoLogic "adult-short-videos/internal/service/video/logic" // 导入 video logic 包
+
+	"go.uber.org/zap"
 )
 
 // SearchService 搜索业务服务
@@ -23,6 +26,7 @@ func NewSearchService(searchRepo repository.SearchRepository) *SearchService {
 // Search 执行搜索
 func (s *SearchService) Search(ctx context.Context, req *dto.SearchReq) (*dto.SearchResp, error) {
 	if req.Keyword == "" {
+		logger.Error("搜索关键词为空")
 		return nil, errors.New(errors.CodeInvalidParam, "搜索关键词为空")
 	}
 	if req.Page < 1 {
@@ -45,6 +49,7 @@ func (s *SearchService) Search(ctx context.Context, req *dto.SearchReq) (*dto.Se
 
 	videos, total, err := s.searchRepo.SearchVideos(ctx, req.Keyword, offset, req.Size, filters)
 	if err != nil {
+		logger.Error("搜索失败", zap.Error(err))
 		return nil, errors.New(errors.CodeDatabaseError, "搜索失败")
 	}
 
