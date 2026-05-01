@@ -7,41 +7,34 @@ import (
 	"context"
 	"strings"
 
+	"adult-short-videos/internal/service/comment/dto"
 	"adult-short-videos/internal/service/comment/model"
 	"adult-short-videos/internal/service/comment/repository"
+	videoModel "adult-short-videos/internal/service/video/model"
 	videoRepo "adult-short-videos/internal/service/video/repository"
 
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
-// AddCommentLogic 发表评论逻辑
-type AddCommentLogic struct {
-	ctx         context.Context
+// CommentService 评论服务
+type CommentService struct {
 	commentRepo repository.CommentRepository
 	videoRepo   videoRepo.VideoRepository
 	db          *gorm.DB
 }
 
-func NewAddCommentLogic(ctx context.Context, commentRepo repository.CommentRepository, videoRepo videoRepo.VideoRepository, db *gorm.DB) *AddCommentLogic {
-	return &AddCommentLogic{
-		ctx:         ctx,
+// NewCommentService 创建 CommentService 实例
+func NewCommentService(commentRepo repository.CommentRepository, videoRepo videoRepo.VideoRepository, db *gorm.DB) *CommentService {
+	return &CommentService{
 		commentRepo: commentRepo,
 		videoRepo:   videoRepo,
 		db:          db,
 	}
 }
 
-// AddCommentReq 发表评论请求
-type AddCommentReq struct {
-	VideoId  int64  `json:"video_id"`  // 视频 ID
-	Content  string `json:"content"`   // 评论内容
-	ParentId int64  `json:"parent_id"` // 父评论ID（0表示顶级评论）
-}
-
 // AddComment 发表评论
-func (l *AddCommentLogic) AddComment(userId int64, req *AddCommentReq) (*model.Comment, error) {
-
+func (s *CommentService) AddComment(ctx context.Context, userId int64, req *dto.AddCommentReq) (*model.Comment, error) {
 	content := strings.TrimSpace(req.Content)
 	if content == "" {
 		logger.Error("评论内容不能为空")
@@ -54,7 +47,7 @@ func (l *AddCommentLogic) AddComment(userId int64, req *AddCommentReq) (*model.C
 	}
 
 	// 检查视频是否存在
-	_, err := l.videoRepo.FindByID(l.ctx, req.VideoId)
+	_, err := s.videoRepo.FindByID(ctx, req.VideoId)
 	if err != nil && err != gorm.ErrRecordNotFound {
 		logger.Error("视频不存在", zap.Error(err))
 		return nil, errors.New(errors.CodeVideoNotFound, "视频不存在")
@@ -69,14 +62,14 @@ func (l *AddCommentLogic) AddComment(userId int64, req *AddCommentReq) (*model.C
 		Status:   1, // 正常状态
 	}
 
-	if err := l.commentRepo.Create(l.ctx, comment); err != nil {
+	if err := s.commentRepo.Create(ctx, comment); err != nil {
 		logger.Error("发表评论失败", zap.Error(err))
 		return nil, errors.New(errors.CodeCommentFailed, "发表评论失败")
 	}
 
 	// 异步更新视频评论数
 	go func() {
-		l.db.Model(&model.Comment{}).
+		s.db.Model(&videoModel.Video{}).
 			Where("video_id = ?", req.VideoId).
 			UpdateColumn("comment_count", gorm.Expr("comment_count + 1"))
 	}()
@@ -85,42 +78,15 @@ func (l *AddCommentLogic) AddComment(userId int64, req *AddCommentReq) (*model.C
 	return comment, nil
 }
 
-// CommentListLogic 评论列表逻辑
-type CommentListLogic struct {
-	ctx         context.Context
-	commentRepo repository.CommentRepository
-}
-
-func NewCommentListLogic(ctx context.Context, commentRepo repository.CommentRepository) *CommentListLogic {
-	return &CommentListLogic{
-		ctx:         ctx,
-		commentRepo: commentRepo,
-	}
-}
-
-// CommentListReq 评论列表请求
-type CommentListReq struct {
-	VideoId int64 // 视频 ID
-	Page    int
-	Size    int
-}
-
-// CommentListResp 评论列表响应
-type CommentListResp struct {
-	Total    int64                    `json:"total"`
-	Page     int                      `json:"page"`
-	Size     int                      `json:"size"`
-	Comments []*model.CommentWithUser `json:"comments"`
-}
-
 // GetCommentList 获取评论列表
-func (l *CommentListLogic) GetCommentList(req *CommentListReq) (*CommentListResp, error) {
+// currentUserId: 当前登录用户ID，如果未登录则为0
+func (s *CommentService) GetCommentList(ctx context.Context, req *dto.CommentListReq, currentUserId int64) (*dto.CommentListResp, error) {
 	// 参数验证
 	if req.Page < 1 {
 		req.Page = 1
 	}
 	if req.Size < 1 {
-		req.Size = 20
+		req.Size = 10
 	}
 	if req.Size > 100 {
 		req.Size = 100
@@ -129,13 +95,12 @@ func (l *CommentListLogic) GetCommentList(req *CommentListReq) (*CommentListResp
 	offset := (req.Page - 1) * req.Size
 
 	// 查询评论列表
-	comments, total, err := l.commentRepo.ListWithUser(l.ctx, req.VideoId, offset, req.Size)
+	comments, total, err := s.commentRepo.ListWithUser(ctx, req.VideoId, currentUserId, offset, req.Size)
 	if err != nil {
-
 		return nil, errors.New(errors.CodeDatabaseError, "查询评论列表失败")
 	}
 
-	return &CommentListResp{
+	return &dto.CommentListResp{
 		Total:    total,
 		Page:     req.Page,
 		Size:     req.Size,
@@ -143,23 +108,10 @@ func (l *CommentListLogic) GetCommentList(req *CommentListReq) (*CommentListResp
 	}, nil
 }
 
-// LikeCommentLogic 点赞评论逻辑
-type LikeCommentLogic struct {
-	ctx         context.Context
-	commentRepo repository.CommentRepository
-}
-
-func NewLikeCommentLogic(ctx context.Context, commentRepo repository.CommentRepository) *LikeCommentLogic {
-	return &LikeCommentLogic{
-		ctx:         ctx,
-		commentRepo: commentRepo,
-	}
-}
-
 // LikeComment 点赞评论
-func (l *LikeCommentLogic) LikeComment(userId, commentId int64) error {
+func (s *CommentService) LikeComment(ctx context.Context, userId, commentId int64) error {
 	// 检查是否已点赞
-	isLiked, err := l.commentRepo.IsLiked(l.ctx, commentId, userId)
+	isLiked, err := s.commentRepo.IsLiked(ctx, commentId, userId)
 	if err != nil {
 		return errors.New(errors.CodeDatabaseError, "检查点赞状态失败")
 	}
@@ -169,13 +121,13 @@ func (l *LikeCommentLogic) LikeComment(userId, commentId int64) error {
 	}
 
 	// 点赞
-	if err := l.commentRepo.LikeComment(l.ctx, commentId, userId); err != nil {
+	if err := s.commentRepo.LikeComment(ctx, commentId, userId); err != nil {
 		return errors.New(errors.CodeDatabaseError, "点赞失败")
 	}
 
 	// 增加点赞数
 	go func() {
-		_ = l.commentRepo.IncrementLikeCount(context.Background(), commentId)
+		_ = s.commentRepo.IncrementLikeCount(context.Background(), commentId)
 	}()
 
 	metrics.CommentsTotal.WithLabelValues("like").Inc()
@@ -183,9 +135,9 @@ func (l *LikeCommentLogic) LikeComment(userId, commentId int64) error {
 }
 
 // UnlikeComment 取消点赞
-func (l *LikeCommentLogic) UnlikeComment(userId, commentId int64) error {
+func (s *CommentService) UnlikeComment(ctx context.Context, userId, commentId int64) error {
 	// 检查是否已点赞
-	isLiked, err := l.commentRepo.IsLiked(l.ctx, commentId, userId)
+	isLiked, err := s.commentRepo.IsLiked(ctx, commentId, userId)
 	if err != nil {
 		return errors.New(errors.CodeDatabaseError, "检查点赞状态失败")
 	}
@@ -195,14 +147,13 @@ func (l *LikeCommentLogic) UnlikeComment(userId, commentId int64) error {
 	}
 
 	// 取消点赞
-	if err := l.commentRepo.UnlikeComment(l.ctx, commentId, userId); err != nil {
+	if err := s.commentRepo.UnlikeComment(ctx, commentId, userId); err != nil {
 		return errors.New(errors.CodeDatabaseError, "取消点赞失败")
-
 	}
 
 	// 减少点赞数
 	go func() {
-		_ = l.commentRepo.DecrementLikeCount(context.Background(), commentId)
+		_ = s.commentRepo.DecrementLikeCount(context.Background(), commentId)
 	}()
 
 	metrics.CommentsTotal.WithLabelValues("unlike").Inc()

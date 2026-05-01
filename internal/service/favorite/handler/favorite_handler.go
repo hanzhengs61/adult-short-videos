@@ -1,10 +1,11 @@
 package handler
 
 import (
-	"adult-short-videos/internal/pkg/errors"
 	"strconv"
 
+	"adult-short-videos/internal/pkg/errors"
 	"adult-short-videos/internal/pkg/response"
+	"adult-short-videos/internal/service/favorite/dto"
 	"adult-short-videos/internal/service/favorite/logic"
 	"adult-short-videos/internal/service/favorite/repository"
 	videoRepo "adult-short-videos/internal/service/video/repository"
@@ -15,118 +16,83 @@ import (
 
 // FavoriteHandler 收藏处理器
 type FavoriteHandler struct {
-	db           *gorm.DB
-	favoriteRepo repository.FavoriteRepository
-	videoRepo    videoRepo.VideoRepository
+	favoriteService *logic.FavoriteService
 }
 
 // NewFavoriteHandler 创建收藏处理器实例
 func NewFavoriteHandler(db *gorm.DB) *FavoriteHandler {
+	fRepo := repository.NewFavoriteRepository(db)
+	vRepo := videoRepo.NewVideoRepository(db)
 	return &FavoriteHandler{
-		db:           db,
-		favoriteRepo: repository.NewFavoriteRepository(db),
-		videoRepo:    videoRepo.NewVideoRepository(db),
+		favoriteService: logic.NewFavoriteService(fRepo, vRepo, db),
 	}
 }
 
 // AddFavorite 添加收藏
 // 路由: POST /api/favorite/add
-// 需要认证
 func (h *FavoriteHandler) AddFavorite(c *gin.Context) {
-	// 获取用户 ID
 	userId, exists := c.Get("user_id")
 	if !exists {
 		response.Unauthorized(c, "未登录")
 		return
 	}
 
-	var req logic.AddFavoriteReq
+	var req dto.AddFavoriteReq
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.HandleError(c, err)
-	}
-
-	if req.VideoId <= 0 {
-		response.Error(c, errors.CodeInvalidParam, "视频 ID无效")
 		return
 	}
 
-	l := logic.NewAddFavoriteLogic(
-		c.Request.Context(),
-		h.favoriteRepo,
-		h.videoRepo,
-		h.db,
-	)
-
-	if err := l.AddFavorite(userId.(int64), &req); err != nil {
+	if err := h.favoriteService.AddFavorite(c.Request.Context(), userId.(int64), &req); err != nil {
 		response.HandleError(c, err)
 		return
 	}
 
-	// 返回成功响应
 	response.SuccessWithMsg(c, "收藏成功", nil)
 }
 
 // RemoveFavorite 取消收藏
 // 路由: DELETE /api/favorite/remove
-// 需要认证
 func (h *FavoriteHandler) RemoveFavorite(c *gin.Context) {
-	// 获取用户 ID
 	userId, exists := c.Get("user_id")
 	if !exists {
 		response.Unauthorized(c, "未登录")
 		return
 	}
 
-	var body struct {
+	var req struct {
 		VideoId int64 `json:"video_id"`
 	}
-	if err := c.ShouldBindJSON(&body); err != nil || body.VideoId <= 0 {
+	if err := c.ShouldBindJSON(&req); err != nil || req.VideoId <= 0 {
 		response.Error(c, errors.CodeInvalidParam, "视频 ID 无效")
 		return
 	}
-	videoId := body.VideoId
 
-	l := logic.NewRemoveFavoriteLogic(
-		c.Request.Context(),
-		h.favoriteRepo,
-		h.db,
-	)
-
-	// 删除收藏
-	if err := l.RemoveFavorite(userId.(int64), videoId); err != nil {
+	if err := h.favoriteService.RemoveFavorite(c.Request.Context(), userId.(int64), req.VideoId); err != nil {
 		response.HandleError(c, err)
 		return
 	}
 
-	response.SuccessWithMsg(c, "已取消收藏", nil)
+	response.SuccessWithMsg(c, "取消收藏成功", nil)
 }
 
 // GetFavoriteList 获取收藏列表
 // 路由: GET /api/favorite/list
-// 需要认证
 func (h *FavoriteHandler) GetFavoriteList(c *gin.Context) {
-	// 获取用户ID
 	userId, exists := c.Get("user_id")
 	if !exists {
 		response.Unauthorized(c, "未登录")
 		return
 	}
 
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	size, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
-
-	req := &logic.FavoriteListReq{
-		Page: page,
-		Size: size,
+	var req dto.FavoriteListReq
+	if err := c.ShouldBindQuery(&req); err != nil {
+		response.HandleError(c, err)
+		return
 	}
 
-	l := logic.NewFavoriteListLogic(
-		c.Request.Context(),
-		h.favoriteRepo,
-	)
+	resp, err := h.favoriteService.GetFavoriteList(c.Request.Context(), userId.(int64), &req)
 
-	// 获取收藏列表
-	resp, err := l.GetFavoriteList(userId.(int64), req)
 	if err != nil {
 		response.HandleError(c, err)
 		return
@@ -135,31 +101,27 @@ func (h *FavoriteHandler) GetFavoriteList(c *gin.Context) {
 	response.Success(c, resp)
 }
 
-// CheckFavorite 检查是否已收藏
-// 路由: GET /api/favorite/check?video_id=
-// 需要认证
+// CheckFavorite 检查是否收藏
+// 路由: GET /api/favorite/check
 func (h *FavoriteHandler) CheckFavorite(c *gin.Context) {
-	// 获取用户ID
 	userId, exists := c.Get("user_id")
 	if !exists {
 		response.Unauthorized(c, "未登录")
 		return
 	}
 
-	videoId, err := strconv.ParseInt(c.Query("video_id"), 10, 64)
+	videoIdStr := c.Query("video_id")
+	videoId, err := strconv.ParseInt(videoIdStr, 10, 64)
 	if err != nil || videoId <= 0 {
 		response.Error(c, errors.CodeInvalidParam, "视频 ID 无效")
 		return
 	}
 
-	// 检查是否已收藏
-	isFavorited, err := h.favoriteRepo.Exists(c.Request.Context(), userId.(int64), videoId)
+	isFavorite, err := h.favoriteService.CheckFavorite(c.Request.Context(), userId.(int64), videoId)
 	if err != nil {
 		response.HandleError(c, err)
 		return
 	}
 
-	response.Success(c, map[string]interface{}{
-		"is_favorited": isFavorited,
-	})
+	response.Success(c, map[string]bool{"is_favorite": isFavorite})
 }

@@ -5,6 +5,7 @@ import (
 
 	"adult-short-videos/internal/pkg/errors"
 	"adult-short-videos/internal/pkg/response"
+	"adult-short-videos/internal/service/comment/dto"
 	"adult-short-videos/internal/service/comment/logic"
 	"adult-short-videos/internal/service/comment/repository"
 	videoRepo "adult-short-videos/internal/service/video/repository"
@@ -15,16 +16,17 @@ import (
 
 // CommentHandler 评论处理器
 type CommentHandler struct {
-	db          *gorm.DB
-	commentRepo repository.CommentRepository
-	videoRepo   videoRepo.VideoRepository
+	commentService *logic.CommentService
+	commentRepo    repository.CommentRepository
 }
 
+// NewCommentHandler 创建 CommentHandler 评论处理器
 func NewCommentHandler(db *gorm.DB) *CommentHandler {
+	commentRepo := repository.NewCommentRepository(db)
+	vRepo := videoRepo.NewVideoRepository(db)
 	return &CommentHandler{
-		db:          db,
-		commentRepo: repository.NewCommentRepository(db),
-		videoRepo:   videoRepo.NewVideoRepository(db),
+		commentRepo:    commentRepo,
+		commentService: logic.NewCommentService(commentRepo, vRepo, db),
 	}
 }
 
@@ -37,14 +39,13 @@ func (h *CommentHandler) AddComment(c *gin.Context) {
 		return
 	}
 
-	var req logic.AddCommentReq
+	var req dto.AddCommentReq
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.HandleError(c, err)
 		return
 	}
 
-	l := logic.NewAddCommentLogic(c.Request.Context(), h.commentRepo, h.videoRepo, h.db)
-	comment, err := l.AddComment(userId.(int64), &req)
+	comment, err := h.commentService.AddComment(c.Request.Context(), userId.(int64), &req)
 	if err != nil {
 		response.HandleError(c, err)
 		return
@@ -65,19 +66,22 @@ func (h *CommentHandler) GetCommentList(c *gin.Context) {
 		return
 	}
 
-	pageStr := c.DefaultQuery("page", "1")
-	size, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	size, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
 
-	page, _ := strconv.Atoi(pageStr)
-
-	req := &logic.CommentListReq{
+	req := &dto.CommentListReq{
 		VideoId: videoId,
 		Page:    page,
 		Size:    size,
 	}
 
-	l := logic.NewCommentListLogic(c.Request.Context(), h.commentRepo)
-	resp, err := l.GetCommentList(req)
+	// 获取当前用户ID，如果未登录则为0
+	var currentUserId int64
+	if userIdVal, exists := c.Get("user_id"); exists {
+		currentUserId = userIdVal.(int64)
+	}
+
+	resp, err := h.commentService.GetCommentList(c.Request.Context(), req, currentUserId)
 	if err != nil {
 		response.HandleError(c, err)
 		return
@@ -103,8 +107,7 @@ func (h *CommentHandler) LikeComment(c *gin.Context) {
 		return
 	}
 
-	l := logic.NewLikeCommentLogic(c.Request.Context(), h.commentRepo)
-	if err := l.LikeComment(userId.(int64), body.CommentId); err != nil {
+	if err := h.commentService.LikeComment(c.Request.Context(), userId.(int64), body.CommentId); err != nil {
 		response.HandleError(c, err)
 		return
 	}
@@ -127,6 +130,7 @@ func (h *CommentHandler) DeleteComment(c *gin.Context) {
 		return
 	}
 
+	// 注意：这里仍然直接使用了 commentRepo，如果 Delete 逻辑也需要迁移到 service 层，则需要进一步重构
 	if err := h.commentRepo.Delete(c.Request.Context(), commentId, userId.(int64)); err != nil {
 		response.HandleError(c, err)
 		return
@@ -151,8 +155,7 @@ func (h *CommentHandler) UnlikeComment(c *gin.Context) {
 		return
 	}
 
-	l := logic.NewLikeCommentLogic(c.Request.Context(), h.commentRepo)
-	if err := l.UnlikeComment(userId.(int64), commentId); err != nil {
+	if err := h.commentService.UnlikeComment(c.Request.Context(), userId.(int64), commentId); err != nil {
 		response.HandleError(c, err)
 		return
 	}

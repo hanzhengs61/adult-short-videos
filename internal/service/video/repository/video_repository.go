@@ -34,6 +34,16 @@ func (r *videoRepository) FindByID(ctx context.Context, videoId int64) (*model.V
 	var video model.Video
 	// 查询条件：video_id = ? AND status = 1（只查正常状态的视频）
 	err := r.db.WithContext(ctx).
+		Select(`
+			videos.*,
+			(
+				SELECT COUNT(*)
+				FROM comments c
+				WHERE c.video_id = videos.video_id
+					AND c.parent_id = 0
+					AND c.status = 1
+			) AS comment_count
+		`).
 		Where("video_id = ? AND status = 1", videoId).
 		First(&video).Error
 
@@ -62,7 +72,18 @@ func (r *videoRepository) List(ctx context.Context, offset, limit int, filters m
 		return nil, 0, err
 	}
 
-	err := query.Order(orderCol + " DESC").
+	err := query.
+		Select(`
+			videos.*,
+			(
+				SELECT COUNT(*)
+				FROM comments c
+				WHERE c.video_id = videos.video_id
+					AND c.parent_id = 0
+					AND c.status = 1
+			) AS comment_count
+		`).
+		Order(orderCol + " DESC").
 		Offset(offset).
 		Limit(limit).
 		Find(&videos).Error
@@ -75,7 +96,16 @@ func (r *videoRepository) GetHotVideos(ctx context.Context, limit int) ([]*model
 
 	err := r.db.WithContext(ctx).
 		Table("videos v").
-		Select("v.*").
+		Select(`
+			v.*,
+			(
+				SELECT COUNT(*)
+				FROM comments c
+				WHERE c.video_id = v.video_id
+					AND c.parent_id = 0
+					AND c.status = 1
+			) AS comment_count
+		`).
 		Joins("INNER JOIN video_heat_stats h ON v.video_id = h.video_id").
 		Where("h.is_hot = ? AND v.status = 1", true).
 		Order("h.heat_score DESC").

@@ -12,8 +12,8 @@ type CommentRepository interface {
 	// Create 创建评论
 	Create(ctx context.Context, comment *model.Comment) error
 
-	// ListWithUser 获取视频的评论列表（包含用户信息）
-	ListWithUser(ctx context.Context, videoId int64, offset, limit int) ([]*model.CommentWithUser, int64, error)
+	// ListWithUser 获取视频的评论列表（包含用户信息和当前用户点赞状态）
+	ListWithUser(ctx context.Context, videoId int64, currentUserId int64, offset, limit int) ([]*model.CommentWithUser, int64, error)
 
 	// GetReplies 获取评论的回复列表
 	GetReplies(ctx context.Context, parentId int64, offset, limit int) ([]*model.CommentWithUser, error)
@@ -29,6 +29,10 @@ type CommentRepository interface {
 
 	// IsLiked 检查是否已点赞
 	IsLiked(ctx context.Context, commentId, userId int64) (bool, error)
+
+	// BatchCheckLiked 批量检查用户是否点赞了评论
+	// 返回 map[commentId]bool
+	BatchCheckLiked(ctx context.Context, userId int64, commentIds []int64) (map[int64]bool, error)
 
 	// IncrementLikeCount 增加点赞数
 	IncrementLikeCount(ctx context.Context, commentId int64) error
@@ -51,7 +55,7 @@ func (r *commentRepository) Create(ctx context.Context, comment *model.Comment) 
 }
 
 // ListWithUser 获取视频的评论列表
-func (r *commentRepository) ListWithUser(ctx context.Context, videoId int64, offset, limit int) ([]*model.CommentWithUser, int64, error) {
+func (r *commentRepository) ListWithUser(ctx context.Context, videoId int64, currentUserId int64, offset, limit int) ([]*model.CommentWithUser, int64, error) {
 	var results []*model.CommentWithUser
 	var total int64
 
@@ -65,7 +69,14 @@ func (r *commentRepository) ListWithUser(ctx context.Context, videoId int64, off
 		return nil, 0, err
 	}
 
-	// 联表查询评论和用户信息
+	isLikedSelect := "false"
+	selectArgs := []interface{}{}
+	if currentUserId > 0 {
+		isLikedSelect = "EXISTS(SELECT 1 FROM comment_likes cl WHERE cl.comment_id = c.comment_id AND cl.user_id = ?)"
+		selectArgs = append(selectArgs, currentUserId)
+	}
+
+	// 联表查询评论、用户信息和当前用户点赞状态
 	err = r.db.WithContext(ctx).
 		Table("comments c").
 		Select(`
@@ -78,11 +89,12 @@ func (r *commentRepository) ListWithUser(ctx context.Context, videoId int64, off
 			c.parent_id,
 			c.like_count,
 			c.status,
-			EXTRACT(EPOCH FROM c.created_at)::bigint as created_at
-		`).
+			EXTRACT(EPOCH FROM c.created_at)::bigint as created_at,
+			`+isLikedSelect+` as is_liked
+		`, selectArgs...).
 		Joins("INNER JOIN users u ON c.user_id = u.user_id").
 		Where("c.video_id = ? AND c.parent_id = 0 AND c.status = 1", videoId).
-		Order("c.created_at DESC").
+		Order("c.like_count DESC, c.created_at DESC").
 		Offset(offset).
 		Limit(limit).
 		Scan(&results).Error
@@ -154,6 +166,29 @@ func (r *commentRepository) IsLiked(ctx context.Context, commentId, userId int64
 	return count > 0, err
 }
 
+// BatchCheckLiked 批量检查用户是否点赞了评论
+func (r *commentRepository) BatchCheckLiked(ctx context.Context, userId int64, commentIds []int64) (map[int64]bool, error) {
+	likedMap := make(map[int64]bool)
+	if len(commentIds) == 0 || userId == 0 {
+		return likedMap, nil
+	}
+
+	var likedCommentIds []int64
+	err := r.db.WithContext(ctx).
+		Model(&model.CommentLike{}).
+		Where("user_id = ? AND comment_id IN (?)", userId, commentIds).
+		Pluck("comment_id", &likedCommentIds).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	for _, id := range likedCommentIds {
+		likedMap[id] = true
+	}
+	return likedMap, nil
+}
+
 // IncrementLikeCount 增加点赞数
 func (r *commentRepository) IncrementLikeCount(ctx context.Context, commentId int64) error {
 	return r.db.WithContext(ctx).
@@ -166,6 +201,6 @@ func (r *commentRepository) IncrementLikeCount(ctx context.Context, commentId in
 func (r *commentRepository) DecrementLikeCount(ctx context.Context, commentId int64) error {
 	return r.db.WithContext(ctx).
 		Model(&model.Comment{}).
-		Where("comment_id = ?", commentId).
-		UpdateColumn("like_count", gorm.Expr("GREATEST(like_count - 1, 0)")).Error
+		Where("comment_id = ? AND like_count > 0", commentId). // 确保点赞数不为负
+		UpdateColumn("like_count", gorm.Expr("like_count - 1")).Error
 }

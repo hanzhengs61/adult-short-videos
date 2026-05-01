@@ -67,6 +67,46 @@ func AuthMiddleware(jwtSecret string) gin.HandlerFunc {
 	}
 }
 
+// OptionalAuthMiddleware 尝试解析登录态，但没有令牌或令牌无效时仍允许继续访问。
+func OptionalAuthMiddleware(jwtSecret string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		authHeader := strings.TrimSpace(c.GetHeader("Authorization"))
+		if authHeader == "" {
+			c.Next()
+			return
+		}
+
+		tokenString := authHeader
+		if strings.HasPrefix(authHeader, "Bearer ") {
+			parts := strings.SplitN(authHeader, " ", 2)
+			if len(parts) != 2 || parts[0] != "Bearer" {
+				c.Next()
+				return
+			}
+			tokenString = strings.TrimSpace(parts[1])
+		}
+
+		claims, err := utils.ParseToken(tokenString, jwtSecret)
+		if err != nil {
+			c.Next()
+			return
+		}
+
+		if cache.Client != nil {
+			hash := sha256.Sum256([]byte(tokenString))
+			blacklistKey := fmt.Sprintf("blacklist:%x", hash)
+			if exists, _ := cache.Exists(c.Request.Context(), blacklistKey); exists {
+				c.Next()
+				return
+			}
+		}
+
+		c.Set("user_id", claims.UserID)
+		c.Set("username", claims.Username)
+		c.Next()
+	}
+}
+
 // CORS 跨域中间件，只允许白名单中的 Origin 跨域访问
 func CORS(allowedOrigins []string) gin.HandlerFunc {
 	originSet := make(map[string]bool, len(allowedOrigins))

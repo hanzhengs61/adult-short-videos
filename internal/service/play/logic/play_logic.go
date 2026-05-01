@@ -3,47 +3,41 @@ package logic
 import (
 	"adult-short-videos/internal/pkg/errors"
 	"adult-short-videos/internal/pkg/metrics"
+	"adult-short-videos/internal/service/play/dto"
 	"adult-short-videos/internal/service/play/model"
 	"adult-short-videos/internal/service/play/repository"
 	videoRepo "adult-short-videos/internal/service/video/repository"
 	"context"
-	"log"
 	"time"
 
-	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
-// RecordPlayLogic 记录播放逻辑
-type RecordPlayLogic struct {
-	ctx       context.Context
+// PlayService 播放历史服务
+type PlayService struct {
 	playRepo  repository.PlayHistoryRepository
 	videoRepo videoRepo.VideoRepository
 	db        *gorm.DB
 }
 
-func NewRecordPlayLogic(ctx context.Context, playRepo repository.PlayHistoryRepository, videoRepo videoRepo.VideoRepository, db *gorm.DB) *RecordPlayLogic {
-	return &RecordPlayLogic{
-		ctx:       ctx,
+// NewPlayService 创建 PlayService 实例
+func NewPlayService(playRepo repository.PlayHistoryRepository, videoRepo videoRepo.VideoRepository, db *gorm.DB) *PlayService {
+	return &PlayService{
 		playRepo:  playRepo,
 		videoRepo: videoRepo,
 		db:        db,
 	}
 }
 
-// RecordPlayReq 记录播放请求
-type RecordPlayReq struct {
-	VideoId      int64   `json:"video_id"`      // 视频 ID
-	PlayDuration int32   `json:"play_duration"` // 观看时长（秒）
-	PlayProgress float32 `json:"play_progress"` // 播放进度（0-100）
-}
-
 // RecordPlay 记录播放历史
-func (l *RecordPlayLogic) RecordPlay(userId int64, req *RecordPlayReq) error {
+func (s *PlayService) RecordPlay(ctx context.Context, userId int64, req *dto.RecordPlayReq) error {
 	// 检查视频是否存在
-	_, err := l.videoRepo.FindByID(l.ctx, req.VideoId)
-	if err != nil && err != gorm.ErrRecordNotFound {
-		return errors.New(errors.CodeDatabaseError, "视频不存在")
+	_, err := s.videoRepo.FindByID(ctx, req.VideoId)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return errors.New(errors.CodeVideoNotFound, "视频不存在")
+		}
+		return errors.New(errors.CodeDatabaseError, "数据库查询失败")
 	}
 
 	// 参数校验
@@ -59,21 +53,18 @@ func (l *RecordPlayLogic) RecordPlay(userId int64, req *RecordPlayReq) error {
 		PlayProgress: req.PlayProgress,
 	}
 
-	if err := l.playRepo.CreateOrUpdate(l.ctx, history); err != nil {
+	if err := s.playRepo.CreateOrUpdate(ctx, history); err != nil {
 		return errors.New(errors.CodeDatabaseError, "记录播放历史失败")
 	}
 
 	// 异步更新视频播放次数
 	go func() {
-		err := l.videoRepo.IncrementPlayCount(context.Background(), req.VideoId)
-		if err != nil {
-			log.Println("更新视频播放次数失败:", zap.Error(err))
-		}
+		_ = s.videoRepo.IncrementPlayCount(context.Background(), req.VideoId)
 	}()
 
 	// 异步更新用户统计
 	go func() {
-		l.db.Exec(`
+		s.db.Exec(`
 			UPDATE user_statistics
 			SET play_count = play_count + 1,
 				total_watch_time = total_watch_time + ?,
@@ -86,36 +77,8 @@ func (l *RecordPlayLogic) RecordPlay(userId int64, req *RecordPlayReq) error {
 	return nil
 }
 
-// PlayHistoryListLogic 播放历史列表逻辑
-type PlayHistoryListLogic struct {
-	ctx      context.Context
-	playRepo repository.PlayHistoryRepository
-}
-
-func NewPlayHistoryListLogic(ctx context.Context, playRepo repository.PlayHistoryRepository) *PlayHistoryListLogic {
-	return &PlayHistoryListLogic{
-		ctx:      ctx,
-		playRepo: playRepo,
-	}
-}
-
-// PlayHistoryListReq 播放历史列表请求
-type PlayHistoryListReq struct {
-	Page int
-	Size int
-}
-
-// PlayHistoryListResp 播放历史列表响应
-type PlayHistoryListResp struct {
-	Total   int64                         `json:"total"`
-	Page    int                           `json:"page"`
-	Size    int                           `json:"size"`
-	History []*model.PlayHistoryWithVideo `json:"history"`
-}
-
-// GetPlayHistoryList 获取播放历史列表
-func (l *PlayHistoryListLogic) GetPlayHistoryList(userId int64, req *PlayHistoryListReq) (*PlayHistoryListResp, error) {
-	// 参数校验
+// GetPlayHistory 获取播放历史列表
+func (s *PlayService) GetPlayHistory(ctx context.Context, userId int64, req *dto.PlayHistoryListReq) (*dto.PlayHistoryListResp, error) {
 	if req.Page < 1 {
 		req.Page = 1
 	}
@@ -127,17 +90,24 @@ func (l *PlayHistoryListLogic) GetPlayHistoryList(userId int64, req *PlayHistory
 	}
 
 	offset := (req.Page - 1) * req.Size
-
-	// 查询播放历史
-	history, total, err := l.playRepo.ListWithVideo(l.ctx, userId, offset, req.Size)
+	history, total, err := s.playRepo.ListWithVideo(ctx, userId, offset, req.Size)
 	if err != nil {
 		return nil, errors.New(errors.CodeDatabaseError, "查询播放历史失败")
 	}
 
-	return &PlayHistoryListResp{
+	return &dto.PlayHistoryListResp{
 		Total:   total,
 		Page:    req.Page,
 		Size:    req.Size,
 		History: history,
 	}, nil
+}
+
+// ClearPlayHistory 清空播放历史
+func (s *PlayService) ClearPlayHistory(ctx context.Context, i int64) error {
+	err := s.playRepo.DeleteAll(ctx, i)
+	if err != nil {
+		return errors.New(errors.CodeDatabaseError, "清空播放历史失败")
+	}
+	return nil
 }

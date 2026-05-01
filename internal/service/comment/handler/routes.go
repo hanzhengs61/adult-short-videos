@@ -10,7 +10,7 @@ import (
 func RegisterRoutes(rg *gin.RouterGroup, db *gorm.DB, jwtSecret string) {
 	h := NewCommentHandler(db)
 	g := rg.Group("/comment")
-	g.GET("/list", h.GetCommentList)
+	g.GET("/list", middleware.OptionalAuthMiddleware(jwtSecret), h.GetCommentList)
 
 	auth := g.Group("")
 	auth.Use(middleware.AuthMiddleware(jwtSecret))

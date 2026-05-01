@@ -42,5 +42,6 @@ export const commentApi = {
     list: params => request.get('/comment/list', {params}),
     add: data => request.post('/comment/add', data),
     like: commentId => request.post('/comment/like', {comment_id: commentId}),
+    unlike: commentId => request.delete(`/comment/like/${commentId}`),
     delete: id => request.delete(`/comment/delete/${id}`),
 }

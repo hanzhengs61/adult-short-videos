@@ -17,9 +17,6 @@ type PlayHistoryRepository interface {
 	// ListWithVideo 获取用户播放历史列表
 	ListWithVideo(ctx context.Context, userId int64, offset, limit int) ([]*model.PlayHistoryWithVideo, int64, error)
 
-	// Delete 删除播放历史
-	Delete(ctx context.Context, userId, videoId int64) error
-
 	// DeleteAll 清空用户所有播放历史
 	DeleteAll(ctx context.Context, userId int64) error
 }
@@ -90,13 +87,6 @@ func (r *playHistoryRepository) ListWithVideo(ctx context.Context, userId int64,
 		Scan(&results).Error
 
 	return results, total, err
-}
-
-// Delete 删除播放历史
-func (r *playHistoryRepository) Delete(ctx context.Context, userId, videoId int64) error {
-	return r.db.WithContext(ctx).
-		Where("user_id = ? AND video_id = ?", userId, videoId).
-		Delete(&model.PlayHistory{}).Error
 }
 
 // DeleteAll 清空用户所有播放历史

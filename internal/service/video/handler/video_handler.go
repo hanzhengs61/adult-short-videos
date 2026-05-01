@@ -1,90 +1,78 @@
 package handler
 
 import (
+	"strconv"
+
 	"adult-short-videos/internal/pkg/response"
+	"adult-short-videos/internal/service/video/dto"
 	"adult-short-videos/internal/service/video/logic"
 	"adult-short-videos/internal/service/video/repository"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
+// VideoHandler 视频处理器
 type VideoHandler struct {
-	videoRepo repository.VideoRepository
+	videoService *logic.VideoService
 }
 
 func NewVideoHandler(db *gorm.DB) *VideoHandler {
-	return &VideoHandler{videoRepo: repository.NewVideoRepository(db)}
+	vRepo := repository.NewVideoRepository(db)
+	return &VideoHandler{
+		videoService: logic.NewVideoService(vRepo),
+	}
 }
 
-// GetVideoList GET /api/video/list
+// GetVideoList 获取视频列表
+// 路由: GET /api/video/list
 func (h *VideoHandler) GetVideoList(c *gin.Context) {
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	size, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
-
-	req := &logic.VideoListReq{
-		Page:    page,
-		Size:    size,
-		OrderBy: c.DefaultQuery("order_by", "created_at"),
+	var req dto.VideoListReq
+	if err := c.ShouldBindQuery(&req); err != nil {
+		response.HandleError(c, err)
+		return
 	}
 
-	l := logic.NewVideoListLogic(c.Request.Context(), h.videoRepo)
-	resp, err := l.GetVideoList(req)
+	resp, err := h.videoService.GetVideoList(c.Request.Context(), &req)
 	if err != nil {
 		response.HandleError(c, err)
 		return
 	}
+
 	response.Success(c, resp)
 }
 
-// GetVideoDetail GET /api/video/detail/:id
+// GetVideoDetail 获取视频详情
+// 路由: GET /api/video/detail/:id
 func (h *VideoHandler) GetVideoDetail(c *gin.Context) {
-	videoId, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	videoIdStr := c.Param("id")
+	videoId, err := strconv.ParseInt(videoIdStr, 10, 64)
 	if err != nil {
 		response.HandleError(c, err)
 		return
 	}
 
-	l := logic.NewVideoDetailLogic(c.Request.Context(), h.videoRepo)
-	detail, err := l.GetVideoDetail(videoId)
+	resp, err := h.videoService.GetVideoDetail(c.Request.Context(), videoId)
 	if err != nil {
 		response.HandleError(c, err)
 		return
 	}
-	response.Success(c, detail)
+
+	response.Success(c, resp)
 }
 
-// GetHotVideos GET /api/video/hot
+// GetHotVideos 获取热门视频
+// 路由: GET /api/video/popular
 func (h *VideoHandler) GetHotVideos(c *gin.Context) {
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
-	if limit < 1 || limit > 50 {
-		limit = 20
-	}
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 
-	videos, err := h.videoRepo.GetHotVideos(c.Request.Context(), limit)
+	resp, err := h.videoService.GetHotVideos(c.Request.Context(), limit)
 	if err != nil {
 		response.HandleError(c, err)
 		return
-	}
-
-	items := make([]logic.VideoItem, 0, len(videos))
-	for _, v := range videos {
-		items = append(items, logic.VideoItem{
-			VideoId:       v.VideoId,
-			Title:         v.Title,
-			CoverURL:      v.CoverURL,
-			Duration:      v.Duration,
-			IsPortrait:    v.IsPortrait,
-			PlayURL:       logic.BuildPlayURL(v.StorageType, v.SourceURL, v.LocalURL),
-			PlayCount:     v.PlayCount,
-			FavoriteCount: v.FavoriteCount,
-			PublishedAt:   v.PublishedAt.Unix(),
-		})
 	}
 
 	response.Success(c, map[string]interface{}{
-		"videos": items,
-		"total":  len(items),
+		"videos": resp,
 	})
 }

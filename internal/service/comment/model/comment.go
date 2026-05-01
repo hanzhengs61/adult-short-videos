@@ -33,6 +33,7 @@ type CommentWithUser struct {
 	LikeCount int64  `json:"like_count"` // 点赞数
 	Status    int32  `json:"status"`     // 状态
 	CreatedAt int64  `json:"created_at"` // 创建时间
+	IsLiked   bool   `json:"is_liked"`   // 当前用户是否点赞
 }
 
 // CommentLike 评论点赞表

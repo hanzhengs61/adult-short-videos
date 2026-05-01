@@ -2,77 +2,25 @@ package logic
 
 import (
 	"adult-short-videos/internal/pkg/errors"
+	"adult-short-videos/internal/service/video/dto"
 	"adult-short-videos/internal/service/video/repository"
 	"context"
 
 	"gorm.io/gorm"
 )
 
-// VideoItem 视频列表项
-type VideoItem struct {
-	VideoId    int64  `json:"video_id"`
-	Title      string `json:"title"`
-	CoverURL   string `json:"cover_url"`
-	Duration   int32  `json:"duration"`
-	IsPortrait bool   `json:"is_portrait"`
-	Author     string `json:"author"`
-
-	PlayURL       string `json:"play_url"`
-	PlayCount     int64  `json:"play_count"`
-	FavoriteCount int64  `json:"favorite_count"`
-	PublishedAt   int64  `json:"published_at"`
-}
-
-func BuildPlayURL(storageType, sourceURL, localURL string) string {
-	if storageType == "hot" && localURL != "" {
-		return localURL
-	}
-	return "/api/storage/proxy?url=" + sourceURL
-}
-
-// VideoDetail 视频详情
-type VideoDetail struct {
-	VideoId    int64  `json:"video_id"`
-	Title      string `json:"title"`
-	CoverURL   string `json:"cover_url"`
-	Duration   int32  `json:"duration"`
-	IsPortrait bool   `json:"is_portrait"`
-	Author     string `json:"author"`
-
-	StorageType   string `json:"storage_type"`
-	PlayURL       string `json:"play_url"`
-	PlayCount     int64  `json:"play_count"`
-	FavoriteCount int64  `json:"favorite_count"`
-	CommentCount  int64  `json:"comment_count"`
-	PublishedAt   int64  `json:"published_at"`
-}
-
-// VideoListReq 视频列表请求
-type VideoListReq struct {
-	Page    int
-	Size    int
-	OrderBy string
-}
-
-// VideoListResp 视频列表响应
-type VideoListResp struct {
-	Total  int64       `json:"total"`
-	Page   int         `json:"page"`
-	Size   int         `json:"size"`
-	Videos []VideoItem `json:"videos"`
-}
-
-// VideoListLogic 视频列表逻辑
-type VideoListLogic struct {
-	ctx       context.Context
+// VideoService 视频服务
+type VideoService struct {
 	videoRepo repository.VideoRepository
 }
 
-func NewVideoListLogic(ctx context.Context, videoRepo repository.VideoRepository) *VideoListLogic {
-	return &VideoListLogic{ctx: ctx, videoRepo: videoRepo}
+// NewVideoService 创建 VideoService 实例
+func NewVideoService(videoRepo repository.VideoRepository) *VideoService {
+	return &VideoService{videoRepo: videoRepo}
 }
 
-func (l *VideoListLogic) GetVideoList(req *VideoListReq) (*VideoListResp, error) {
+// GetVideoList 获取视频列表
+func (s *VideoService) GetVideoList(ctx context.Context, req *dto.VideoListReq) (*dto.VideoListResp, error) {
 	if req.Page < 1 {
 		req.Page = 1
 	}
@@ -89,29 +37,29 @@ func (l *VideoListLogic) GetVideoList(req *VideoListReq) (*VideoListResp, error)
 	}
 
 	offset := (req.Page - 1) * req.Size
-	videos, total, err := l.videoRepo.List(l.ctx, offset, req.Size, filters)
+	videos, total, err := s.videoRepo.List(ctx, offset, req.Size, filters)
 	if err != nil {
 		return nil, errors.New(errors.CodeVideoNotFound, "查询视频列表失败")
 	}
 
-	items := make([]VideoItem, 0, len(videos))
+	items := make([]dto.VideoItem, 0, len(videos))
 	for _, v := range videos {
-		items = append(items, VideoItem{
-			VideoId:    v.VideoId,
-			Title:      v.Title,
-			CoverURL:   v.CoverURL,
-			Duration:   v.Duration,
-			IsPortrait: v.IsPortrait,
-			Author:     v.Author,
-
+		items = append(items, dto.VideoItem{
+			VideoId:       v.VideoId,
+			Title:         v.Title,
+			CoverURL:      v.CoverURL,
+			Duration:      v.Duration,
+			IsPortrait:    v.IsPortrait,
+			Author:        v.Author,
 			PlayURL:       BuildPlayURL(v.StorageType, v.SourceURL, v.LocalURL),
 			PlayCount:     v.PlayCount,
 			FavoriteCount: v.FavoriteCount,
+			CommentCount:  v.CommentCount,
 			PublishedAt:   v.PublishedAt.Unix(),
 		})
 	}
 
-	return &VideoListResp{
+	return &dto.VideoListResp{
 		Total:  total,
 		Page:   req.Page,
 		Size:   req.Size,
@@ -119,29 +67,24 @@ func (l *VideoListLogic) GetVideoList(req *VideoListReq) (*VideoListResp, error)
 	}, nil
 }
 
-// VideoDetailLogic 视频详情逻辑
-type VideoDetailLogic struct {
-	ctx       context.Context
-	videoRepo repository.VideoRepository
-}
-
-func NewVideoDetailLogic(ctx context.Context, videoRepo repository.VideoRepository) *VideoDetailLogic {
-	return &VideoDetailLogic{ctx: ctx, videoRepo: videoRepo}
-}
-
-func (l *VideoDetailLogic) GetVideoDetail(videoId int64) (*VideoDetail, error) {
-	video, err := l.videoRepo.FindByID(l.ctx, videoId)
-	if err != nil && err != gorm.ErrRecordNotFound {
-		return nil, errors.New(errors.CodeVideoNotFound, "查询视频失败")
+// GetVideoDetail 获取视频详情
+func (s *VideoService) GetVideoDetail(ctx context.Context, videoId int64) (*dto.VideoDetail, error) {
+	video, err := s.videoRepo.FindByID(ctx, videoId)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, errors.New(errors.CodeVideoNotFound, "视频不存在")
+		}
+		return nil, errors.New(errors.CodeDatabaseError, "查询视频失败")
 	}
 
 	playURL := BuildPlayURL(video.StorageType, video.SourceURL, video.LocalURL)
 
+	// 异步增加播放数
 	go func() {
-		l.videoRepo.IncrementPlayCount(context.Background(), videoId)
+		_ = s.videoRepo.IncrementPlayCount(context.Background(), videoId)
 	}()
 
-	return &VideoDetail{
+	return &dto.VideoDetail{
 		VideoId:       video.VideoId,
 		Title:         video.Title,
 		CoverURL:      video.CoverURL,
@@ -155,4 +98,38 @@ func (l *VideoDetailLogic) GetVideoDetail(videoId int64) (*VideoDetail, error) {
 		CommentCount:  video.CommentCount,
 		PublishedAt:   video.PublishedAt.Unix(),
 	}, nil
+}
+
+// GetHotVideos 获取热门视频列表
+func (s *VideoService) GetHotVideos(ctx context.Context, limit int) ([]dto.VideoItem, error) {
+	videos, err := s.videoRepo.GetHotVideos(ctx, limit)
+	if err != nil {
+		return nil, errors.New(errors.CodeDatabaseError, "查询热门视频失败")
+	}
+
+	items := make([]dto.VideoItem, 0, len(videos))
+	for _, v := range videos {
+		items = append(items, dto.VideoItem{
+			VideoId:       v.VideoId,
+			Title:         v.Title,
+			CoverURL:      v.CoverURL,
+			Duration:      v.Duration,
+			IsPortrait:    v.IsPortrait,
+			Author:        v.Author,
+			PlayURL:       BuildPlayURL(v.StorageType, v.SourceURL, v.LocalURL),
+			PlayCount:     v.PlayCount,
+			FavoriteCount: v.FavoriteCount,
+			CommentCount:  v.CommentCount,
+			PublishedAt:   v.PublishedAt.Unix(),
+		})
+	}
+	return items, nil
+}
+
+// BuildPlayURL 构建播放链接
+func BuildPlayURL(storageType, sourceURL, localURL string) string {
+	if storageType == "hot" && localURL != "" {
+		return localURL
+	}
+	return "/api/storage/proxy?url=" + sourceURL
 }

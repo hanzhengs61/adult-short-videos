@@ -13,6 +13,5 @@ func RegisterRoutes(rg *gin.RouterGroup, db *gorm.DB, jwtSecret string) {
 	g.Use(middleware.AuthMiddleware(jwtSecret))
 	g.POST("/record", h.RecordPlay)
 	g.GET("/history", h.GetPlayHistory)
-	g.DELETE("/history/:videoId", h.DeletePlayHistory)
 	g.DELETE("/history", h.ClearPlayHistory)
 }

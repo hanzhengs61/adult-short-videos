@@ -16,11 +16,11 @@
 
         <!-- 视频元素（object-contain 保持原始比例，横屏视频不裁剪，黑边填充） -->
         <video
-          :ref="el => { if (el) videoRefs[idx] = el }"
-          class="absolute inset-0 w-full h-full object-contain"
-          style="background:#000"
-          loop playsinline preload="none"
-          @click="togglePlay(idx)"
+            :ref="el => { if (el) videoRefs[idx] = el }"
+            class="absolute inset-0 w-full h-full object-contain"
+            style="background:#000"
+            loop playsinline preload="none"
+            @click="togglePlay(idx)"
         />
 
         <!-- 渐变遮罩 -->
@@ -43,16 +43,17 @@
         <div class="absolute right-3 bottom-28 flex flex-col items-center gap-5">
           <button @click.stop="toggleFavorite(v)" class="flex flex-col items-center gap-1">
             <div :class="['w-11 h-11 rounded-full bg-black/30 backdrop-blur flex items-center justify-center transition-all',
-              v._favorited ? 'text-primary' : 'text-white']">
+              v._favorited ? 'text-yellow-400' : 'text-white']">
               <svg class="w-6 h-6" :fill="v._favorited ? 'currentColor' : 'none'"
                    stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round"
-                      d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
+                      d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z"/>
               </svg>
             </div>
             <span class="text-white text-[10px] font-medium drop-shadow">{{ fmtN(v.favorite_count) }}</span>
           </button>
 
+          <!-- 评论按钮 -->
           <button @click.stop="openComment(v)" class="flex flex-col items-center gap-1">
             <div class="w-11 h-11 rounded-full bg-black/30 backdrop-blur flex items-center justify-center text-white">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -63,6 +64,7 @@
             <span class="text-white text-[10px] font-medium drop-shadow">{{ fmtN(v.comment_count) }}</span>
           </button>
 
+          <!-- 分享按钮 -->
           <button @click.stop="share(v)" class="flex flex-col items-center gap-1">
             <div class="w-11 h-11 rounded-full bg-black/30 backdrop-blur flex items-center justify-center text-white">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -78,7 +80,9 @@
         <div class="absolute left-3 right-16 bottom-14">
           <p class="text-white font-semibold text-sm leading-snug line-clamp-2 drop-shadow">{{ v.title }}</p>
           <div class="flex items-center gap-1 text-white/60 text-xs mt-1.5">
-            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M8 5v14l11-7z"/>
+            </svg>
             {{ fmtN(v.play_count) }} 次播放
           </div>
         </div>
@@ -128,14 +132,17 @@
         <div class="bg-bg-surface rounded-t-2xl border-t border-border max-h-[70vh] flex flex-col">
           <div class="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
             <span class="text-sm font-semibold text-text-primary">评论</span>
-            <button @click="commentVideo = null" class="text-text-muted hover:text-text-primary">
+            <button @click="commentVideo = null" class="text-sm font-semibold text-text-primary">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
               </svg>
             </button>
           </div>
           <div class="flex-1 overflow-y-auto">
-            <CommentSection :video-id="commentVideo.video_id"/>
+            <CommentSection
+                :video-id="commentVideo.video_id"
+                @comment-count-updated="updateCommentCount"
+            />
           </div>
         </div>
       </div>
@@ -144,8 +151,8 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onUnmounted, nextTick } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import {nextTick, onMounted, onUnmounted, reactive, ref} from 'vue'
+import {useRoute, useRouter} from 'vue-router'
 import Hls from 'hls.js'
 import { videoApi, favoriteApi, playApi } from '@/api'
 import { useUserStore } from '@/stores/user'
@@ -190,7 +197,7 @@ function observeSentinel() {
   if (!sentinel.value || !container.value) return
   sentinelObserver = new IntersectionObserver(([entry]) => {
     if (entry.isIntersecting) fetchMore()
-  }, { root: container.value, rootMargin: '200px', threshold: 0.01 })
+  }, {root: container.value, rootMargin: '200px', threshold: 0.01})
   sentinelObserver.observe(sentinel.value)
 }
 
@@ -200,7 +207,9 @@ function fmtN(n) {
 }
 
 function stopAll() {
-  videoRefs.forEach(el => { if (el) el.pause() })
+  videoRefs.forEach(el => {
+    if (el) el.pause()
+  })
 }
 
 function initVideo(idx) {
@@ -212,12 +221,12 @@ function initVideo(idx) {
   if (!el) return
 
   el.addEventListener('timeupdate', () => {
-    videoTimes[idx] = { current: el.currentTime, duration: el.duration || 0 }
+    videoTimes[idx] = {current: el.currentTime, duration: el.duration || 0}
   })
 
   if (src.includes('.m3u8') && Hls.isSupported()) {
     // Chrome / Firefox / Edge：用 hls.js
-    const hls = new Hls({ enableWorker: true, maxBufferLength: 20 })
+    const hls = new Hls({enableWorker: true, maxBufferLength: 20})
     hls.loadSource(src)
     hls.attachMedia(el)
     hlsMap[idx] = hls
@@ -226,7 +235,11 @@ function initVideo(idx) {
       hlsReady.add(idx)
       if (pendingPlay === idx) {
         el.muted = false
-        el.play().catch(() => { el.muted = true; el.play().catch(() => {}) })
+        el.play().catch(() => {
+          el.muted = true;
+          el.play().catch(() => {
+          })
+        })
       }
     })
 
@@ -258,11 +271,16 @@ function playAt(idx) {
 
   const v = videos.value[idx]
   // 观看视频不应要求登录；仅记录播放历史需要登录，避免 401 导致重定向。
-  if (v && userStore.isLoggedIn) playApi.record(v.video_id).catch(() => {})
+  if (v && userStore.isLoggedIn) playApi.record(v.video_id).catch(() => {
+  })
 
   if (hlsReady.has(idx)) {
     el.muted = false
-    el.play().catch(() => { el.muted = true; el.play().catch(() => {}) })
+    el.play().catch(() => {
+      el.muted = true;
+      el.play().catch(() => {
+      })
+    })
   }
   // 否则等 MANIFEST_PARSED 触发
 }
@@ -270,8 +288,14 @@ function playAt(idx) {
 function togglePlay(idx) {
   const el = videoRefs[idx]
   if (!el) return
-  if (el.paused) { el.play().catch(() => {}); pausedIdx.value = -1 }
-  else { el.pause(); pausedIdx.value = idx }
+  if (el.paused) {
+    el.play().catch(() => {
+    });
+    pausedIdx.value = -1
+  } else {
+    el.pause();
+    pausedIdx.value = idx
+  }
   if (!el.paused) currentPlayingIdx.value = idx
 }
 
@@ -296,6 +320,7 @@ function fmtTime(s) {
 }
 
 let itemObservers = []
+
 function observeItems() {
   itemObservers.forEach(o => o.disconnect())
   itemObservers = []
@@ -315,10 +340,24 @@ function observeItems() {
       if (idx !== safeExpectedIdx) return
 
       playAt(idx)
-    }, { threshold: 0.6, root: container.value })
+    }, {threshold: 0.6, root: container.value})
     io.observe(el)
     itemObservers.push(io)
   })
+}
+
+async function checkFavorites(list) {
+  if (!userStore.isLoggedIn || !list.length) return
+  await Promise.allSettled(
+      list.map(v =>
+          favoriteApi.check(v.video_id)
+              .then(res => {
+                v._favorited = !!res.data?.is_favorited
+              })
+              .catch(() => {
+              })
+      )
+  )
 }
 
 async function fetchMore() {
@@ -326,24 +365,28 @@ async function fetchMore() {
   loading.value = true
   try {
     const pageSize = 20
-    const res = await videoApi.list({ page: page.value, page_size: pageSize, order_by: orderBy })
+    const res = await videoApi.list({page: page.value, page_size: pageSize, order_by: orderBy})
     const rawList = res.data?.videos || []
     const list = rawList
-      .filter(v => !videos.value.some(e => e.video_id === v.video_id))
-      .map(v => ({ ...v, _favorited: false }))
+        .filter(v => !videos.value.some(e => e.video_id === v.video_id))
+        .map(v => ({...v, _favorited: false}))
     videos.value.push(...list)
     page.value++
     // 注意：这里用 rawList 判断是否到底，而不是用 filter 后长度。
-    // 否则当目标视频重复被过滤时，会误判“已到底”，导致无法继续滑动。
+    // 否则当目标视频重复被过滤时，会误判”已到底”，导致无法继续滑动。
     if (rawList.length < pageSize) hasMore.value = false
+    await checkFavorites(list)
     await nextTick()
     observeItems()
     observeSentinel()
-  } catch {}
+  } catch {
+  }
   loading.value = false
 }
 
-const onResize = () => { screenH.value = window.innerHeight }
+const onResize = () => {
+  screenH.value = window.innerHeight
+}
 
 function goBack() {
   stopAll()
@@ -369,13 +412,13 @@ onMounted(async () => {
     Object.keys(hlsMap).forEach(k => delete hlsMap[k])
 
     while (currentPage <= maxSearchPages && foundIdx < 0) {
-      const res = await videoApi.list({ page: currentPage, page_size: pageSize, order_by: orderBy })
+      const res = await videoApi.list({page: currentPage, page_size: pageSize, order_by: orderBy})
       const rawList = res.data?.videos || []
       lastRawLen = rawList.length
 
       const newOnes = rawList
-        .filter(v => !videos.value.some(e => e.video_id === v.video_id))
-        .map(v => ({ ...v, _favorited: false }))
+          .filter(v => !videos.value.some(e => e.video_id === v.video_id))
+          .map(v => ({...v, _favorited: false}))
 
       videos.value.push(...newOnes)
 
@@ -392,6 +435,7 @@ onMounted(async () => {
       return
     }
 
+    await checkFavorites(videos.value)
     await nextTick()
     if (container.value) container.value.scrollTop = foundIdx * screenH.value
     await nextTick()
@@ -418,8 +462,13 @@ onUnmounted(() => {
   window.removeEventListener('resize', onResize)
 })
 
+// 收藏
 async function toggleFavorite(v) {
-  if (!userStore.isLoggedIn) { userStore.openAuth('login'); return }
+  if (!userStore.isLoggedIn) {
+    userStore.openAuth('login')
+    return
+  }
+
   try {
     if (v._favorited) {
       await favoriteApi.remove(v.video_id)
@@ -430,28 +479,55 @@ async function toggleFavorite(v) {
       v._favorited = true
       v.favorite_count = (v.favorite_count || 0) + 1
     }
-  } catch {}
+  } catch (err) {
+    // 可以在这里提示用户
+  }
 }
 
 function openComment(v) { commentVideo.value = v }
 
+function updateCommentCount(count) {
+  if (!commentVideo.value) return
+  commentVideo.value.comment_count = count
+  const item = videos.value.find(v => v.video_id === commentVideo.value.video_id)
+  if (item) item.comment_count = count
+}
+
 async function share(v) {
   const url = `${location.origin}/feed?id=${v.video_id}&order_by=${orderBy}`
   if (navigator.share) {
-    navigator.share({ title: v.title, url }).catch(() => {})
+    navigator.share({title: v.title, url}).catch(() => {
+    })
   } else {
-    await navigator.clipboard.writeText(url).catch(() => {})
+    await navigator.clipboard.writeText(url).catch(() => {
+    })
     alert('链接已复制')
   }
 }
 </script>
 
 <style scoped>
-.fade-icon-enter-active { transition: opacity 0.2s; }
-.fade-icon-leave-active { transition: opacity 0.4s; }
-.fade-icon-enter-from, .fade-icon-leave-to { opacity: 0; }
+.fade-icon-enter-active {
+  transition: opacity 0.2s;
+}
 
-.slide-up-enter-active { transition: transform 0.3s ease; }
-.slide-up-leave-active { transition: transform 0.25s ease; }
-.slide-up-enter-from, .slide-up-leave-to { transform: translateY(100%); }
+.fade-icon-leave-active {
+  transition: opacity 0.4s;
+}
+
+.fade-icon-enter-from, .fade-icon-leave-to {
+  opacity: 0;
+}
+
+.slide-up-enter-active {
+  transition: transform 0.3s ease;
+}
+
+.slide-up-leave-active {
+  transition: transform 0.25s ease;
+}
+
+.slide-up-enter-from, .slide-up-leave-to {
+  transform: translateY(100%);
+}
 </style>

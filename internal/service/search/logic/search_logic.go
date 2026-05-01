@@ -5,49 +5,23 @@ import (
 	"context"
 
 	"adult-short-videos/internal/pkg/metrics"
+	"adult-short-videos/internal/service/search/dto"
 	"adult-short-videos/internal/service/search/repository"
+	videoLogic "adult-short-videos/internal/service/video/logic" // 导入 video logic 包
 )
 
-// SearchLogic 搜索业务逻辑
-type SearchLogic struct {
-	ctx        context.Context
+// SearchService 搜索业务服务
+type SearchService struct {
 	searchRepo repository.SearchRepository
 }
 
-// NewSearchLogic 创建搜索逻辑实例
-func NewSearchLogic(ctx context.Context, searchRepo repository.SearchRepository) *SearchLogic {
-	return &SearchLogic{ctx: ctx, searchRepo: searchRepo}
+// NewSearchService 创建搜索服务实例
+func NewSearchService(searchRepo repository.SearchRepository) *SearchService {
+	return &SearchService{searchRepo: searchRepo}
 }
 
-// SearchReq 搜索请求
-type SearchReq struct {
-	Keyword string `form:"keyword"`   // 搜索关键词
-	Page    int    `form:"page"`      // 页码
-	Size    int    `form:"page_size"` // 每页数量
-	OrderBy string `form:"order_by"`  // 排序字段
-}
-
-type VideoSearchItem struct {
-	VideoId       int64  `json:"video_id"`
-	Title         string `json:"title"`
-	CoverURL      string `json:"cover_url"`
-	Duration      int32  `json:"duration"`
-	IsPortrait    bool   `json:"is_portrait"`
-	Author        string `json:"author"`
-	PlayURL       string `json:"play_url"`
-	PlayCount     int64  `json:"play_count"`
-	FavoriteCount int64  `json:"favorite_count"`
-	PublishedAt   int64  `json:"published_at"`
-}
-
-type SearchResp struct {
-	Total  int64             `json:"total"`
-	Page   int               `json:"page"`
-	Size   int               `json:"size"`
-	Videos []VideoSearchItem `json:"videos"`
-}
-
-func (l *SearchLogic) Search(req *SearchReq) (*SearchResp, error) {
+// Search 执行搜索
+func (s *SearchService) Search(ctx context.Context, req *dto.SearchReq) (*dto.SearchResp, error) {
 	if req.Keyword == "" {
 		return nil, errors.New(errors.CodeInvalidParam, "搜索关键词为空")
 	}
@@ -69,20 +43,16 @@ func (l *SearchLogic) Search(req *SearchReq) (*SearchResp, error) {
 	metrics.SearchRequestsTotal.WithLabelValues("video").Inc()
 	offset := (req.Page - 1) * req.Size
 
-	videos, total, err := l.searchRepo.SearchVideos(l.ctx, req.Keyword, offset, req.Size, filters)
+	videos, total, err := s.searchRepo.SearchVideos(ctx, req.Keyword, offset, req.Size, filters)
 	if err != nil {
 		return nil, errors.New(errors.CodeDatabaseError, "搜索失败")
 	}
 
-	items := make([]VideoSearchItem, 0, len(videos))
+	items := make([]dto.VideoSearchItem, 0, len(videos))
 	for _, v := range videos {
-		playURL := v.SourceURL
-		if v.StorageType != "hot" || v.LocalURL == "" {
-			playURL = "/api/storage/proxy?url=" + v.SourceURL
-		} else {
-			playURL = v.LocalURL
-		}
-		items = append(items, VideoSearchItem{
+		// 使用 video 模块的 BuildPlayURL
+		playURL := videoLogic.BuildPlayURL(v.StorageType, v.SourceURL, v.LocalURL)
+		items = append(items, dto.VideoSearchItem{
 			VideoId:       v.VideoId,
 			Title:         v.Title,
 			CoverURL:      v.CoverURL,
@@ -96,7 +66,7 @@ func (l *SearchLogic) Search(req *SearchReq) (*SearchResp, error) {
 		})
 	}
 
-	return &SearchResp{
+	return &dto.SearchResp{
 		Total:  total,
 		Page:   req.Page,
 		Size:   req.Size,
