@@ -1,5 +1,5 @@
 <template>
-  <div class="relative bg-black" style="height:100vh;overflow:hidden">
+  <div ref="feedRoot" class="relative bg-black" style="height:100vh;overflow:hidden">
 
     <!-- 滚动容器 -->
     <div ref="container" class="w-full h-full overflow-y-scroll snap-y snap-mandatory"
@@ -19,12 +19,16 @@
             :ref="el => { if (el) videoRefs[idx] = el }"
             class="absolute inset-0 w-full h-full object-contain"
             style="background:#000"
-            loop playsinline preload="none"
+            playsinline preload="none"
             @click="togglePlay(idx)"
+            @play="syncPlayState(idx, true)"
+            @pause="syncPlayState(idx, false)"
+            @ended="handleEnded(idx)"
+            @loadedmetadata="syncVideoTime(idx)"
         />
 
         <!-- 渐变遮罩 -->
-        <div class="absolute inset-0 pointer-events-none"
+        <div v-if="!cleanMode" class="absolute inset-0 pointer-events-none"
              style="background:linear-gradient(to top,rgba(0,0,0,0.72) 0%,transparent 45%,transparent 70%,rgba(0,0,0,0.25) 100%)"/>
 
         <!-- 暂停图标 -->
@@ -40,7 +44,7 @@
         </transition>
 
         <!-- 右侧操作栏 -->
-        <div class="absolute right-3 bottom-28 flex flex-col items-center gap-5">
+        <div v-if="!cleanMode" class="absolute right-3 bottom-36 flex flex-col items-center gap-5">
           <button @click.stop="toggleFavorite(v)" class="flex flex-col items-center gap-1">
             <div :class="['w-11 h-11 rounded-full bg-black/30 backdrop-blur flex items-center justify-center transition-all',
               v._favorited ? 'text-yellow-400' : 'text-white']">
@@ -77,7 +81,7 @@
         </div>
 
         <!-- 底部信息 -->
-        <div class="absolute left-3 right-16 bottom-14">
+        <div v-if="!cleanMode" class="absolute left-3 right-16 bottom-24">
           <p class="text-white font-semibold text-sm leading-snug line-clamp-2 drop-shadow">{{ v.title }}</p>
           <div class="flex items-center gap-1 text-white/60 text-xs mt-1.5">
             <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
@@ -87,20 +91,58 @@
           </div>
         </div>
 
-        <!-- 进度条 -->
-        <div class="absolute bottom-0 left-0 right-0 z-10 pb-2 pt-1" @click.stop @touchstart.stop.passive>
-          <div class="flex items-center justify-between px-3 mb-1">
-            <span class="text-white/60 text-[10px]">{{ fmtTime(videoTimes[idx]?.current) }}</span>
-            <span class="text-white/60 text-[10px]">{{ fmtTime(videoTimes[idx]?.duration || v.duration) }}</span>
-          </div>
-          <div class="relative h-1 mx-3 bg-white/25 rounded-full">
+        <!-- 底部控制栏 -->
+        <div class="absolute bottom-0 left-0 right-0 z-10 bg-black/90 text-white" @click.stop @touchstart.stop.passive>
+          <div class="relative h-2 bg-white/20">
             <div class="absolute inset-y-0 left-0 bg-white rounded-full pointer-events-none transition-none"
                  :style="{width: getProgress(idx)+'%'}"/>
             <input type="range" min="0" max="100" step="0.1"
                    :value="getProgress(idx)"
                    @input="seekTo(idx, Number($event.target.value))"
-                   class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                   class="feed-progress-range absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                    style="touch-action:none"/>
+          </div>
+          <div class="flex min-h-12 items-center gap-3 px-3">
+            <button class="control-icon-btn shrink-0" @click="togglePlay(idx)" :aria-label="isPlaying(idx) ? '暂停' : '播放'">
+              <svg v-if="isPlaying(idx)" class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+              </svg>
+              <svg v-else class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z"/>
+              </svg>
+            </button>
+            <div class="text-xs tabular-nums text-white/90 shrink-0">
+              {{ fmtTime(videoTimes[idx]?.current) }} / {{ fmtTime(videoTimes[idx]?.duration || v.duration) }}
+            </div>
+            <div class="flex-1"></div>
+            <div class="flex items-center gap-2 overflow-x-auto controls-scroll">
+              <button :class="['control-toggle', continuousPlay ? 'is-on' : '']" @click="toggleContinuousPlay">
+                <span class="toggle-dot"></span>
+                <span>连播</span>
+              </button>
+              <button :class="['control-toggle', cleanMode ? 'is-on' : '']" @click="cleanMode = !cleanMode">
+                <span class="toggle-dot"></span>
+                <span>清屏</span>
+              </button>
+              <button class="control-text-btn" @click="cycleSpeed">{{ playbackRateLabel }}</button>
+              <button class="control-icon-btn" @click="toggleMuted" :aria-label="muted ? '打开声音' : '静音'">
+                <svg v-if="muted" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M16 9l5 5m0-5l-5 5M5 9v6h4l5 4V5L9 9H5z"/>
+                </svg>
+                <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M5 9v6h4l5 4V5L9 9H5z"/>
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M17 9.5a4 4 0 010 5M19.5 7a7 7 0 010 10"/>
+                </svg>
+              </button>
+              <button class="control-icon-btn" @click="toggleFullscreen" :aria-label="isFullscreen ? '退出全屏' : '全屏'">
+                <svg v-if="isFullscreen" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 3v6H3M15 3v6h6M9 21v-6H3M15 21v-6h6"/>
+                </svg>
+                <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"/>
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -114,7 +156,7 @@
     </div>
 
     <!-- 左上角：返回 -->
-    <div class="absolute top-4 left-3 z-10">
+    <div v-if="!cleanMode" class="absolute top-4 left-3 z-10">
       <button @click="goBack"
               class="w-9 h-9 rounded-full bg-black/40 backdrop-blur
                      flex items-center justify-center text-white active:scale-95 transition-transform">
@@ -151,7 +193,7 @@
 </template>
 
 <script setup>
-import {nextTick, onMounted, onUnmounted, reactive, ref} from 'vue'
+import {computed, nextTick, onMounted, onUnmounted, reactive, ref} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import Hls from 'hls.js'
 import { videoApi, favoriteApi, playApi } from '@/api'
@@ -162,6 +204,7 @@ const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
 
+const feedRoot = ref(null)
 const container = ref(null)
 const videos = ref([])
 const videoRefs = reactive([])   // 用 reactive 避免 ref[idx] 赋值到包装对象上
@@ -175,6 +218,15 @@ const screenH = ref(window.innerHeight)
 const startIdRaw = route.query.id == null ? '' : String(route.query.id)
 const startId = Number(startIdRaw) || 0
 const sentinel = ref(null)
+const cleanMode = ref(false)
+const continuousPlay = ref(true)
+const muted = ref(false)
+const isFullscreen = ref(false)
+const playbackRates = [1, 1.25, 1.5, 2]
+const playbackRateIdx = ref(0)
+const playStates = reactive({})
+const playbackRate = computed(() => playbackRates[playbackRateIdx.value])
+const playbackRateLabel = computed(() => `${playbackRate.value === 1 ? '倍速' : playbackRate.value + 'x'}`)
 
 const orderByAllowed = ['created_at', 'play_count', 'comment_count', 'favorite_count']
 const orderByRaw = route.query.order_by == null ? '' : String(route.query.order_by)
@@ -212,6 +264,29 @@ function stopAll() {
   })
 }
 
+function applyVideoSettings(el) {
+  if (!el) return
+  el.muted = muted.value
+  el.playbackRate = playbackRate.value
+}
+
+function syncVideoTime(idx) {
+  const el = videoRefs[idx]
+  if (!el) return
+  videoTimes[idx] = {current: el.currentTime || 0, duration: el.duration || 0}
+  applyVideoSettings(el)
+}
+
+function syncPlayState(idx, playing) {
+  playStates[idx] = playing
+  if (playing) {
+    pausedIdx.value = -1
+    currentPlayingIdx.value = idx
+  } else if (currentPlayingIdx.value === idx) {
+    playStates[idx] = false
+  }
+}
+
 function initVideo(idx) {
   if (hlsReady.has(idx) || hlsMap[idx]) return
   const v = videos.value[idx]
@@ -219,6 +294,7 @@ function initVideo(idx) {
   if (!src) return
   const el = videoRefs[idx]
   if (!el) return
+  applyVideoSettings(el)
 
   el.addEventListener('timeupdate', () => {
     videoTimes[idx] = {current: el.currentTime, duration: el.duration || 0}
@@ -234,9 +310,10 @@ function initVideo(idx) {
     hls.on(Hls.Events.MANIFEST_PARSED, () => {
       hlsReady.add(idx)
       if (pendingPlay === idx) {
-        el.muted = false
+        applyVideoSettings(el)
         el.play().catch(() => {
-          el.muted = true;
+          muted.value = true
+          applyVideoSettings(el)
           el.play().catch(() => {
           })
         })
@@ -252,6 +329,7 @@ function initVideo(idx) {
   // Safari 原生 HLS 或 MP4
   el.src = src
   hlsReady.add(idx)
+  applyVideoSettings(el)
 }
 
 function playAt(idx) {
@@ -275,9 +353,10 @@ function playAt(idx) {
   })
 
   if (hlsReady.has(idx)) {
-    el.muted = false
+    applyVideoSettings(el)
     el.play().catch(() => {
-      el.muted = true;
+      muted.value = true
+      applyVideoSettings(el)
       el.play().catch(() => {
       })
     })
@@ -289,16 +368,44 @@ function togglePlay(idx) {
   const el = videoRefs[idx]
   if (!el) return
   if (el.paused) {
+    applyVideoSettings(el)
     el.play().catch(() => {
     });
     pausedIdx.value = -1
+    playStates[idx] = true
   } else {
     el.pause();
     pausedIdx.value = idx
+    playStates[idx] = false
   }
   if (!el.paused) currentPlayingIdx.value = idx
 }
 
+function isPlaying(idx) {
+  return !!playStates[idx]
+}
+
+async function handleEnded(idx) {
+  playStates[idx] = false
+  if (!continuousPlay.value) {
+    pausedIdx.value = idx
+    return
+  }
+
+  const nextIdx = idx + 1
+  if (nextIdx >= videos.value.length) {
+    await fetchMore()
+  }
+  if (nextIdx >= videos.value.length) {
+    pausedIdx.value = idx
+    return
+  }
+  pausedIdx.value = -1
+  if (container.value) {
+    container.value.scrollTo({top: nextIdx * screenH.value, behavior: 'smooth'})
+  }
+  window.setTimeout(() => playAt(nextIdx), 220)
+}
 
 function getProgress(idx) {
   const t = videoTimes[idx]
@@ -310,6 +417,7 @@ function seekTo(idx, pct) {
   const el = videoRefs[idx]
   if (!el || !el.duration) return
   el.currentTime = (pct / 100) * el.duration
+  syncVideoTime(idx)
 }
 
 function fmtTime(s) {
@@ -388,6 +496,36 @@ const onResize = () => {
   screenH.value = window.innerHeight
 }
 
+function toggleContinuousPlay() {
+  continuousPlay.value = !continuousPlay.value
+}
+
+function toggleMuted() {
+  muted.value = !muted.value
+  videoRefs.forEach(applyVideoSettings)
+}
+
+function cycleSpeed() {
+  playbackRateIdx.value = (playbackRateIdx.value + 1) % playbackRates.length
+  videoRefs.forEach(applyVideoSettings)
+}
+
+function syncFullscreenState() {
+  isFullscreen.value = !!(document.fullscreenElement || document.webkitFullscreenElement)
+}
+
+async function toggleFullscreen() {
+  const target = feedRoot.value || document.documentElement
+  if (!isFullscreen.value) {
+    const request = target.requestFullscreen || target.webkitRequestFullscreen
+    if (request) await request.call(target).catch(() => {})
+  } else {
+    const exit = document.exitFullscreen || document.webkitExitFullscreen
+    if (exit) await exit.call(document).catch(() => {})
+  }
+  syncFullscreenState()
+}
+
 function goBack() {
   stopAll()
   router.back()
@@ -452,6 +590,8 @@ onMounted(async () => {
   // 用 sentinel 触底加载，避免 snap/阈值导致“第9条后不再触发加载”
   observeSentinel()
   window.addEventListener('resize', onResize)
+  document.addEventListener('fullscreenchange', syncFullscreenState)
+  document.addEventListener('webkitfullscreenchange', syncFullscreenState)
 })
 
 onUnmounted(() => {
@@ -460,6 +600,8 @@ onUnmounted(() => {
   itemObservers.forEach(o => o.disconnect())
   sentinelObserver?.disconnect()
   window.removeEventListener('resize', onResize)
+  document.removeEventListener('fullscreenchange', syncFullscreenState)
+  document.removeEventListener('webkitfullscreenchange', syncFullscreenState)
 })
 
 // 收藏
@@ -529,5 +671,98 @@ async function share(v) {
 
 .slide-up-enter-from, .slide-up-leave-to {
   transform: translateY(100%);
+}
+
+.control-icon-btn {
+  align-items: center;
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.92);
+  display: inline-flex;
+  height: 32px;
+  justify-content: center;
+  min-width: 32px;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.control-icon-btn:active,
+.control-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.control-text-btn {
+  align-items: center;
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.92);
+  display: inline-flex;
+  font-size: 13px;
+  font-weight: 600;
+  height: 32px;
+  justify-content: center;
+  min-width: 44px;
+  padding: 0 8px;
+  white-space: nowrap;
+}
+
+.control-text-btn:active,
+.control-text-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.control-toggle {
+  align-items: center;
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.86);
+  display: inline-flex;
+  font-size: 13px;
+  font-weight: 600;
+  gap: 5px;
+  height: 32px;
+  padding: 0 6px;
+  white-space: nowrap;
+}
+
+.control-toggle:active,
+.control-toggle:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.toggle-dot {
+  background: rgba(255, 255, 255, 0.66);
+  border-radius: 999px;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.16);
+  height: 8px;
+  width: 8px;
+}
+
+.control-toggle.is-on .toggle-dot {
+  background: #ff2b75;
+  box-shadow: 0 0 0 3px rgba(255, 43, 117, 0.24);
+}
+
+.feed-progress-range {
+  appearance: none;
+}
+
+.feed-progress-range::-webkit-slider-thumb {
+  appearance: none;
+  height: 18px;
+  width: 18px;
+}
+
+.feed-progress-range::-moz-range-thumb {
+  border: 0;
+  height: 18px;
+  width: 18px;
+}
+
+.controls-scroll {
+  scrollbar-width: none;
+}
+
+.controls-scroll::-webkit-scrollbar {
+  display: none;
 }
 </style>
