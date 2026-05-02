@@ -339,7 +339,10 @@ function playAt(idx) {
   // 防止 IntersectionObserver 在列表追加/重新观察时重复触发同一条视频，
   // 导致 stopAll() 后重头播放。
   if (idx === pausedIdx.value) return
-  if (idx === currentPlayingIdx.value && !el.paused) return
+  // 已是当前播放对象：不论是否已开始播放、HLS 是否已就绪，都不再重复走 stopAll+init，
+  // 否则会把刚 attachMedia 但 manifest 未解析完的视频 pause 掉，
+  // 进而被浏览器 autoplay 策略 reject 而无法恢复。
+  if (idx === currentPlayingIdx.value && (!el.paused || hlsMap[idx])) return
 
   stopAll()
   pausedIdx.value = -1
@@ -428,12 +431,15 @@ function fmtTime(s) {
 }
 
 let itemObservers = []
+// 已注册过 observer 的元素：fetchMore 后只对新增项注册，
+// 避免重置 observer 触发"初始 fire"打断当前 idx 的 HLS 加载/播放
+const observedEls = new WeakSet()
 
 function observeItems() {
-  itemObservers.forEach(o => o.disconnect())
-  itemObservers = []
   const els = container.value?.querySelectorAll('[data-idx]')
   els?.forEach(el => {
+    if (observedEls.has(el)) return
+    observedEls.add(el)
     const idx = Number(el.dataset.idx)
     const io = new IntersectionObserver(([entry]) => {
       if (!entry.isIntersecting || entry.intersectionRatio < 0.6) return
@@ -538,7 +544,8 @@ function onContainerScroll() {
 }
 
 onMounted(async () => {
-  const pageSize = 10
+  // 搜索分页大小与 fetchMore 保持一致，避免 page.value 错位导致后续翻页跳号
+  const pageSize = 20
 
   if (startIdRaw) {
     const maxSearchPages = 50
@@ -576,7 +583,9 @@ onMounted(async () => {
     await checkFavorites(videos.value)
     await nextTick()
     if (container.value) container.value.scrollTop = foundIdx * screenH.value
-    await nextTick()
+    // 等浏览器真正落实滚动，避免 IntersectionObserver 用旧 scrollTop=0
+    // 触发 playAt(0)，把刚 initVideo 完的 foundIdx 状态覆盖掉，导致永远不会调 play()
+    await new Promise(r => requestAnimationFrame(r))
     observeItems()
     playAt(foundIdx)
   } else {
@@ -626,7 +635,13 @@ async function toggleFavorite(v) {
   }
 }
 
-function openComment(v) { commentVideo.value = v }
+function openComment(v) {
+  const idx = videos.value.findIndex(item => item.video_id === v.video_id)
+  if (idx >= 0) {
+    initVideo(idx)
+  }
+  commentVideo.value = v
+}
 
 function updateCommentCount(count) {
   if (!commentVideo.value) return
