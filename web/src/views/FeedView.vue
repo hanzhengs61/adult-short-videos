@@ -82,7 +82,15 @@
 
         <!-- 底部信息 -->
         <div v-if="!cleanMode" class="absolute left-3 right-16 bottom-24">
-          <p class="text-white font-semibold text-sm leading-snug line-clamp-2 drop-shadow">{{ v.title }}</p>
+          <div v-if="v.title && v.title.length > 30" class="flex items-end gap-1.5">
+            <p :class="['flex-1 min-w-0 text-white font-semibold text-sm leading-snug drop-shadow', expandedTitles.has(v.video_id) ? '' : 'line-clamp-2']"
+               @click.stop="toggleTitle(v.video_id)">{{ v.title }}</p>
+            <button class="shrink-0 mb-px bg-white/20 text-white text-xs px-2 py-0.5 rounded-full whitespace-nowrap"
+                    @click.stop="toggleTitle(v.video_id)">
+              {{ expandedTitles.has(v.video_id) ? '收起' : '展开' }}
+            </button>
+          </div>
+          <p v-else class="text-white font-semibold text-sm leading-snug drop-shadow line-clamp-2">{{ v.title }}</p>
           <div class="flex items-center gap-1 text-white/60 text-xs mt-1.5">
             <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
               <path d="M8 5v14l11-7z"/>
@@ -225,6 +233,15 @@ const isFullscreen = ref(false)
 const playbackRates = [1, 1.25, 1.5, 2]
 const playbackRateIdx = ref(0)
 const playStates = reactive({})
+const expandedTitles = reactive(new Set())
+
+function toggleTitle(videoId) {
+  if (expandedTitles.has(videoId)) {
+    expandedTitles.delete(videoId)
+  } else {
+    expandedTitles.add(videoId)
+  }
+}
 const playbackRate = computed(() => playbackRates[playbackRateIdx.value])
 const playbackRateLabel = computed(() => `${playbackRate.value === 1 ? '倍速' : playbackRate.value + 'x'}`)
 
