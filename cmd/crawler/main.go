@@ -2,7 +2,9 @@ package main
 
 import (
 	"adult-short-videos/internal/config"
-	"adult-short-videos/internal/service/video/model"
+	userModel "adult-short-videos/internal/service/user/model"
+	videoModel "adult-short-videos/internal/service/video/model"
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"image"
@@ -13,6 +15,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -42,6 +45,10 @@ func main() {
 		log.Fatalf("connect db: %v", err)
 	}
 
+	// 查询数据库中的用户列表，由控制台选择投稿用户
+	selectedUser := selectUser(db)
+	log.Printf("已选择用户: %s (ID: %d)，开始采集", selectedUser.Username, selectedUser.UserId)
+
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 	client := &http.Client{Timeout: 30 * time.Second}
 
@@ -59,7 +66,7 @@ func main() {
 			continue
 		}
 
-		inserted := parseAndUpsert(db, client, htmlStr)
+		inserted := parseAndUpsert(db, client, htmlStr, selectedUser)
 		log.Printf("第 %d 页: 写入 %d 条", page, inserted)
 		totalInserted += inserted
 
@@ -145,8 +152,42 @@ func detectPortrait(client *http.Client, coverURL string) bool {
 	return cfg.Height > cfg.Width
 }
 
+// selectUser 从数据库查询用户列表，由控制台交互选择，返回 user_id
+func selectUser(db *gorm.DB) userModel.User {
+	var users []userModel.User
+	if err := db.Select("user_id, username, status").Order("user_id").Find(&users).Error; err != nil {
+		log.Fatalf("查询用户失败: %v", err)
+	}
+	if len(users) == 0 {
+		log.Fatal("数据库中没有用户，请先注册账号")
+	}
+
+	fmt.Println("=== 请选择投稿用户 ===")
+	for i, u := range users {
+		statusLabel := "正常"
+		if u.Status == 0 {
+			statusLabel = "禁用"
+		}
+		fmt.Printf("  [%d] user_id=%-6d  username=%s  (%s)\n", i+1, u.UserId, u.Username, statusLabel)
+	}
+	fmt.Print("输入序号: ")
+
+	scanner := bufio.NewScanner(os.Stdin)
+	for scanner.Scan() {
+		input := strings.TrimSpace(scanner.Text())
+		idx, err := strconv.Atoi(input)
+		if err != nil || idx < 1 || idx > len(users) {
+			fmt.Printf("请输入 1~%d 之间的序号: ", len(users))
+			continue
+		}
+		return users[idx-1]
+	}
+	log.Fatal("读取输入失败")
+	return userModel.User{}
+}
+
 // parseAndUpsert 解析 HTML 片段，upsert 到 DB，返回实际写入数量
-func parseAndUpsert(db *gorm.DB, client *http.Client, htmlStr string) int {
+func parseAndUpsert(db *gorm.DB, client *http.Client, htmlStr string, selectedUser userModel.User) int {
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(htmlStr))
 	if err != nil {
 		log.Printf("goquery parse error: %v", err)
@@ -175,17 +216,7 @@ func parseAndUpsert(db *gorm.DB, client *http.Client, htmlStr string) int {
 
 		isPortrait := detectPortrait(client, coverURL)
 
-		// 尝试多个可能的作者/频道字段
-		author := strings.TrimSpace(s.AttrOr("data-author",
-			s.AttrOr("data-channel",
-				s.AttrOr("data-publisher",
-					s.AttrOr("data-uploader", "")))))
-		// 也尝试子元素文本
-		if author == "" {
-			author = strings.TrimSpace(s.Find(".author, .channel, .publisher, .uploader").First().Text())
-		}
-
-		v := model.Video{
+		v := videoModel.Video{
 			Title:       title,
 			CoverURL:    coverURL,
 			Duration:    durationSec,
@@ -193,15 +224,19 @@ func parseAndUpsert(db *gorm.DB, client *http.Client, htmlStr string) int {
 			SourceURL:   sourceURL,
 			PlayCount:   playCount,
 			IsPortrait:  isPortrait,
-			Author:      author,
+			Author:      selectedUser.Username, // 使用你选择的作者名字
+			UserId:      selectedUser.UserId,   // 使用你选择的 ID
 			Status:      1,
 			RemoteId:    remoteID,
 			PublishedAt: time.Now(),
 		}
 
 		result := db.Clauses(clause.OnConflict{
-			Columns:   []clause.Column{{Name: "remote_id"}},
-			DoUpdates: clause.AssignmentColumns([]string{"title", "cover_url", "source_url", "play_count", "duration", "is_portrait", "author"}),
+			Columns: []clause.Column{{Name: "remote_id"}},
+			DoUpdates: clause.AssignmentColumns([]string{
+				"title", "cover_url", "source_url", "play_count",
+				"duration", "is_portrait", "author", "user_id",
+			}),
 		}).Create(&v)
 
 		if result.Error != nil {
