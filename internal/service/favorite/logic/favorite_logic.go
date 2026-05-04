@@ -9,6 +9,7 @@ import (
 	"adult-short-videos/internal/service/favorite/repository"
 	videoRepo "adult-short-videos/internal/service/video/repository"
 	"context"
+	errs "errors"
 
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -35,7 +36,7 @@ func (s *FavoriteService) AddFavorite(ctx context.Context, userId int64, req *dt
 	// 检查视频是否存在
 	video, err := s.videoRepo.FindByID(ctx, req.VideoId)
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errs.Is(err, gorm.ErrRecordNotFound) {
 			return errors.New(errors.CodeVideoNotFound, "视频不存在")
 		}
 		logger.Error("查询视频失败", zap.Error(err))

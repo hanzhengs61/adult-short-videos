@@ -82,6 +82,20 @@
 
         <!-- 底部信息 -->
         <div v-if="!cleanMode" class="absolute left-3 right-16 bottom-24">
+          <!-- 作者行 -->
+          <div v-if="v.author" class="flex items-center gap-2 mb-2">
+            <div class="w-7 h-7 rounded-full bg-white/25 flex items-center justify-center text-white text-xs font-bold shrink-0">
+              {{ v.author[0] }}
+            </div>
+            <span class="text-white text-xs font-medium flex-1 min-w-0 truncate drop-shadow">{{ v.author }}</span>
+            <button v-if="userStore.isLoggedIn"
+                    :class="['shrink-0 text-xs px-2.5 py-0.5 rounded-full font-medium transition-all',
+                             followedAuthors.has(v.author) ? 'bg-white/20 text-white/70' : 'bg-primary/90 text-white']"
+                    @click.stop="toggleFollow(v.author)">
+              {{ followedAuthors.has(v.author) ? '已关注' : '+ 关注' }}
+            </button>
+          </div>
+          <!-- 标题行 -->
           <div v-if="v.title && v.title.length > 30" class="flex items-end gap-1.5">
             <p :class="['flex-1 min-w-0 text-white font-semibold text-sm leading-snug drop-shadow', expandedTitles.has(v.video_id) ? '' : 'line-clamp-2']"
                @click.stop="toggleTitle(v.video_id)">{{ v.title }}</p>
@@ -204,7 +218,7 @@
 import {computed, nextTick, onMounted, onUnmounted, reactive, ref} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import Hls from 'hls.js'
-import { videoApi, favoriteApi, playApi } from '@/api'
+import { videoApi, favoriteApi, playApi, followApi } from '@/api'
 import { useUserStore } from '@/stores/user'
 import CommentSection from '@/components/common/CommentSection.vue'
 
@@ -234,6 +248,7 @@ const playbackRates = [1, 1.25, 1.5, 2]
 const playbackRateIdx = ref(0)
 const playStates = reactive({})
 const expandedTitles = reactive(new Set())
+const followedAuthors = reactive(new Set())
 
 function toggleTitle(videoId) {
   if (expandedTitles.has(videoId)) {
@@ -241,6 +256,31 @@ function toggleTitle(videoId) {
   } else {
     expandedTitles.add(videoId)
   }
+}
+
+async function checkFollowStatus(authors) {
+  if (!userStore.isLoggedIn) return
+  const unique = [...new Set(authors.filter(Boolean))]
+  await Promise.allSettled(
+    unique.map(author =>
+      followApi.check(author)
+        .then(res => { if (res.data?.is_followed) followedAuthors.add(author) })
+        .catch(() => {})
+    )
+  )
+}
+
+async function toggleFollow(author) {
+  if (!userStore.isLoggedIn) { userStore.openAuth('login'); return }
+  try {
+    if (followedAuthors.has(author)) {
+      await followApi.unfollow(author)
+      followedAuthors.delete(author)
+    } else {
+      await followApi.follow(author)
+      followedAuthors.add(author)
+    }
+  } catch {}
 }
 const playbackRate = computed(() => playbackRates[playbackRateIdx.value])
 const playbackRateLabel = computed(() => `${playbackRate.value === 1 ? '倍速' : playbackRate.value + 'x'}`)
@@ -388,17 +428,21 @@ function togglePlay(idx) {
   const el = videoRefs[idx]
   if (!el) return
   if (el.paused) {
+    if (!hlsReady.has(idx)) {
+      // 未初始化，走完整的 playAt 流程（含 initVideo）
+      playAt(idx)
+      return
+    }
     applyVideoSettings(el)
-    el.play().catch(() => {
-    });
+    el.play().catch(() => {})
     pausedIdx.value = -1
     playStates[idx] = true
+    currentPlayingIdx.value = idx
   } else {
-    el.pause();
+    el.pause()
     pausedIdx.value = idx
     playStates[idx] = false
   }
-  if (!el.paused) currentPlayingIdx.value = idx
 }
 
 function isPlaying(idx) {
@@ -507,6 +551,7 @@ async function fetchMore() {
     // 否则当目标视频重复被过滤时，会误判”已到底”，导致无法继续滑动。
     if (rawList.length < pageSize) hasMore.value = false
     await checkFavorites(list)
+    await checkFollowStatus(list.map(v => v.author))
     await nextTick()
     observeItems()
     observeSentinel()
@@ -598,6 +643,7 @@ onMounted(async () => {
     }
 
     await checkFavorites(videos.value)
+    await checkFollowStatus(videos.value.map(v => v.author))
     await nextTick()
     if (container.value) container.value.scrollTop = foundIdx * screenH.value
     // 等浏览器真正落实滚动，避免 IntersectionObserver 用旧 scrollTop=0

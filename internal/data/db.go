@@ -7,6 +7,7 @@ import (
 	"adult-short-videos/internal/pkg/logger"
 	commentModel "adult-short-videos/internal/service/comment/model"
 	favoriteModel "adult-short-videos/internal/service/favorite/model"
+	followModel "adult-short-videos/internal/service/follow/model"
 	playModel "adult-short-videos/internal/service/play/model"
 	userModel "adult-short-videos/internal/service/user/model"
 	videoModel "adult-short-videos/internal/service/video/model"
@@ -68,5 +69,6 @@ func Migrate(db *gorm.DB) error {
 		&playModel.PlayHistory{},
 		&commentModel.Comment{},
 		&commentModel.CommentLike{},
+		&followModel.AuthorFollow{},
 	)
 }

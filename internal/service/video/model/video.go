@@ -23,7 +23,8 @@ type Video struct {
 
 	// ========== 媒体属性 ==========
 	IsPortrait bool   `gorm:"default:false;comment:是否竖屏视频" json:"is_portrait"`
-	Author     string `gorm:"type:varchar(100);default:'';comment:上传者/频道名" json:"author"`
+	Author     string `gorm:"type:varchar(100);default:'';comment:上传者用户名，对应 users.username" json:"author"`
+	UserId     int64  `gorm:"default:0;index;comment:关联用户ID，0=未关联" json:"user_id"`
 
 	// ========== 状态 ==========
 	Status int32 `gorm:"default:1;index;comment:0:下架 1:正常" json:"status"`

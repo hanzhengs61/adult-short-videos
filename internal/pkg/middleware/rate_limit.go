@@ -51,7 +51,7 @@ func RateLimit(limiter *IPRateLimiter) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ip := c.ClientIP()
 
-		// 获取该IP的限流器
+		// 获取该 IP 的限流器
 		l := limiter.GetLimiter(ip)
 
 		// 检查是否允许通过

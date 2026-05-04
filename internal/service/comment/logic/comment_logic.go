@@ -5,6 +5,7 @@ import (
 	"adult-short-videos/internal/pkg/logger"
 	"adult-short-videos/internal/pkg/metrics"
 	"context"
+	errs "errors"
 	"strings"
 
 	"adult-short-videos/internal/service/comment/dto"
@@ -48,9 +49,9 @@ func (s *CommentService) AddComment(ctx context.Context, userId int64, req *dto.
 
 	// 检查视频是否存在
 	_, err := s.videoRepo.FindByID(ctx, req.VideoId)
-	if err != nil && err != gorm.ErrRecordNotFound {
-		logger.Error("视频不存在", zap.Error(err))
-		return nil, errors.New(errors.CodeVideoNotFound, "视频不存在")
+	if err != nil && !errs.Is(err, gorm.ErrRecordNotFound) {
+		logger.Error("查询视频失败", zap.Error(err))
+		return nil, errors.New(errors.CodeDatabaseError, "数据库查询失败")
 	}
 
 	// 创建评论

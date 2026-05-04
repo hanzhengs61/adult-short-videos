@@ -9,6 +9,7 @@ import (
 	"adult-short-videos/internal/service/play/repository"
 	videoRepo "adult-short-videos/internal/service/video/repository"
 	"context"
+	errs "errors"
 	"time"
 
 	"go.uber.org/zap"
@@ -36,7 +37,7 @@ func (s *PlayService) RecordPlay(ctx context.Context, userId int64, req *dto.Rec
 	// 检查视频是否存在
 	_, err := s.videoRepo.FindByID(ctx, req.VideoId)
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errs.Is(err, gorm.ErrRecordNotFound) {
 			logger.Error("视频不存在", zap.Error(err))
 			return errors.New(errors.CodeVideoNotFound, "视频不存在")
 		}

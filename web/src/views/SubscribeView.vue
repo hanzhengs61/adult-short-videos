@@ -101,28 +101,34 @@
 </template>
 
 <script setup>
-import {ref} from 'vue'
+import { ref, onMounted } from 'vue'
 import VideoCard from '@/components/common/VideoCard.vue'
-import {useUserStore} from '@/stores/user'
-import {useInfiniteScroll} from '@/composables/useInfiniteScroll'
-import {videoApi} from '@/api'
+import { useUserStore } from '@/stores/user'
+import { useInfiniteScroll } from '@/composables/useInfiniteScroll'
+import { followApi } from '@/api'
 
 const userStore = useUserStore()
-const following = ref([]) // TODO: GET /api/user/following
+const following = ref([])
 const feedVideos = ref([])
 const page = ref(1)
 
+onMounted(async () => {
+  if (!userStore.isLoggedIn) return
+  try {
+    const res = await followApi.list()
+    following.value = (res.data?.authors || []).map(name => ({ name, hasNew: false }))
+  } catch {}
+})
+
 async function fetchFeed() {
-  const res = await videoApi.list({page: page.value, page_size: 20, order_by: 'created_at'})
+  const res = await followApi.feed({ page: page.value, page_size: 20 })
   const list = res.data?.videos || []
   feedVideos.value.push(...list)
   page.value++
-  if (list.length < 20) return false
+  if (!res.data?.has_more) return false
 }
 
-const {sentinel, loading, hasMore} = useInfiniteScroll(fetchFeed)
+const { sentinel, loading, hasMore } = useInfiniteScroll(fetchFeed)
 
-function scrollToCreator(id) {
-  // TODO: 跳转到创作者主页
-}
+function scrollToCreator() {}
 </script>

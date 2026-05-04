@@ -11,6 +11,7 @@ import (
 	"adult-short-videos/internal/pkg/middleware"
 	commentHandler "adult-short-videos/internal/service/comment/handler"
 	favoriteHandler "adult-short-videos/internal/service/favorite/handler"
+	followHandler "adult-short-videos/internal/service/follow/handler"
 	playHandler "adult-short-videos/internal/service/play/handler"
 	searchHandler "adult-short-videos/internal/service/search/handler"
 	storageHandler "adult-short-videos/internal/service/storage/handler"
@@ -20,7 +21,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
-	"golang.org/x/time/rate"
 	"gorm.io/gorm"
 )
 
@@ -57,7 +57,7 @@ func buildRouter(cfg *config.Config, db *gorm.DB) *gin.Engine {
 		}
 	}
 	r.Use(middleware.CORS(corsOrigins))
-	r.Use(middleware.RateLimit(middleware.NewIPRateLimiter(rate.Limit(10), 20)))
+	//r.Use(middleware.RateLimit(middleware.NewIPRateLimiter(rate.Limit(10), 20)))
 
 	r.GET("/health", healthCheck(db))
 	if cfg.Metrics.Enabled {
@@ -72,6 +72,7 @@ func buildRouter(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	storageHandler.RegisterRoutes(api)
 	searchHandler.RegisterRoutes(api, db)
 	commentHandler.RegisterRoutes(api, db, cfg.JWT.Secret)
+	followHandler.RegisterRoutes(api, db, cfg.JWT.Secret)
 
 	return r
 }

@@ -11,6 +11,9 @@ import (
 	"context"
 
 	"go.uber.org/zap"
+	"gorm.io/gorm"
+
+	errs "errors"
 )
 
 // RegisterLogic 注册业务逻辑
@@ -66,8 +69,10 @@ func (l *RegisterLogic) Register(req *RegisterReq) (*RegisterResp, error) {
 	// 检查用户名是否已存在
 	existingUser, err := l.userRepo.FindByUsername(l.ctx, req.Username)
 	if err != nil {
-		logger.Error("用户已存在", zap.Error(err), zap.String("username", req.Username))
-		return nil, errors.New(errors.CodeUserExists, "用户已存在")
+		if !errs.Is(err, gorm.ErrRecordNotFound) {
+			logger.Error("数据库查询异常", zap.Error(err), zap.String("username", req.Username))
+			return nil, errors.New(errors.CodeDatabaseError, "系统繁忙")
+		}
 	}
 
 	if existingUser != nil {
@@ -77,8 +82,10 @@ func (l *RegisterLogic) Register(req *RegisterReq) (*RegisterResp, error) {
 	// 检查邮箱是否已被使用
 	existingEmail, err := l.userRepo.FindByEmail(l.ctx, req.Email)
 	if err != nil {
-		logger.Error("邮箱已被注册", zap.Error(err), zap.String("email", req.Email))
-		return nil, errors.New(errors.CodeEmailExists, "邮箱已被注册")
+		if !errs.Is(err, gorm.ErrRecordNotFound) {
+			logger.Error("数据库查询异常", zap.Error(err), zap.String("email", req.Email))
+			return nil, errors.New(errors.CodeDatabaseError, "系统繁忙")
+		}
 	}
 
 	if existingEmail != nil {

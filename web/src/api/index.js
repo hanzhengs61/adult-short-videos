@@ -37,6 +37,15 @@ export const playApi = {
     history: params => request.get('/play/history', {params}),
 }
 
+// 关注
+export const followApi = {
+    follow: author => request.post('/follow', { author }),
+    unfollow: author => request.delete('/follow', { data: { author } }),
+    check: author => request.get('/follow/check', { params: { author } }),
+    list: () => request.get('/follow/list'),
+    feed: params => request.get('/follow/feed', { params }),
+}
+
 // 评论
 export const commentApi = {
     list: params => request.get('/comment/list', {params}),

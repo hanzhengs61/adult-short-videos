@@ -6,6 +6,7 @@ import (
 	"adult-short-videos/internal/service/video/dto"
 	"adult-short-videos/internal/service/video/repository"
 	"context"
+	errs "errors"
 
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -41,6 +42,7 @@ func (s *VideoService) GetVideoList(ctx context.Context, req *dto.VideoListReq) 
 	offset := (req.Page - 1) * req.Size
 	videos, total, err := s.videoRepo.List(ctx, offset, req.Size, filters)
 	if err != nil {
+
 		// 记录详细错误信息
 		logger.Error("查询视频列表失败", zap.Error(err), zap.Any("filters", filters))
 		return nil, errors.New(errors.CodeVideoNotFound, "查询视频列表失败")
@@ -75,7 +77,7 @@ func (s *VideoService) GetVideoList(ctx context.Context, req *dto.VideoListReq) 
 func (s *VideoService) GetVideoDetail(ctx context.Context, videoId int64) (*dto.VideoDetail, error) {
 	video, err := s.videoRepo.FindByID(ctx, videoId)
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errs.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New(errors.CodeVideoNotFound, "视频不存在")
 		}
 		logger.Error("查询视频详情失败", zap.Error(err), zap.Int64("videoId", videoId))

@@ -11,9 +11,10 @@ import (
 数据库错误: 1xxx
 用户错误: 2xxx
 视频错误: 3xxx
-评论错误: 4xxx
-收藏错误: 5xxx
+收藏错误: 4xxx
+评论错误: 5xxx
 搜索错误: 6xxx
+关注错误: 7xxx
 **/
 const (
 	CodeSuccess         = 200 // 成功
@@ -52,6 +53,8 @@ const (
 	CodeNotLiked            = 5008 // 未点赞该评论
 	CodeUnlikeCommentFailed = 5009 // 取消点赞失败
 
+	CodeAlreadyFollowed = 7001 // 已关注该作者
+	CodeNotFollowed     = 7002 // 未关注该作者
 )
 
 // BizError 业务错误

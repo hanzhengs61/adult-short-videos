@@ -2,12 +2,15 @@ package logic
 
 import (
 	"adult-short-videos/internal/pkg/errors"
+	"adult-short-videos/internal/pkg/logger"
 	"adult-short-videos/internal/pkg/metrics"
 	"adult-short-videos/internal/pkg/utils"
 	"adult-short-videos/internal/service/user/model"
 	"adult-short-videos/internal/service/user/repository"
 	"context"
+	errs "errors"
 
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
@@ -59,13 +62,13 @@ type LoginResp struct {
 func (l *LoginLogic) Login(req *LoginReq) (*LoginResp, error) {
 	// 1: 查找用户
 	user, err := l.userRepo.FindByUsername(l.ctx, req.Username)
-	if err != nil && err != gorm.ErrRecordNotFound {
-		// 如果是"记录不存在"错误，说明用户名不存在
-		metrics.UserLoginsTotal.WithLabelValues("false").Inc()
-		return nil, errors.New(errors.CodeUserNotFound, "用户不存在")
+	if err != nil && !errs.Is(err, gorm.ErrRecordNotFound) {
+		logger.Error("数据库查询异常", zap.Error(err), zap.String("username", req.Username))
+		return nil, errors.New(errors.CodeDatabaseError, "系统繁忙")
 	}
 
 	if user == nil {
+		metrics.UserLoginsTotal.WithLabelValues("false").Inc()
 		return nil, errors.New(errors.CodeUserNotFound, "用户不存在")
 	}
 
