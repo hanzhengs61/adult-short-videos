@@ -44,7 +44,7 @@
         </transition>
 
         <!-- 右侧操作栏 -->
-        <div v-if="!cleanMode" class="absolute right-3 bottom-36 flex flex-col items-center gap-5">
+        <div v-if="!cleanMode" class="absolute right-3 bottom-52 flex flex-col items-center gap-5">
           <button @click.stop="toggleFavorite(v)" class="flex flex-col items-center gap-1">
             <div :class="['w-11 h-11 rounded-full bg-black/30 backdrop-blur flex items-center justify-center transition-all',
               v._favorited ? 'text-yellow-400' : 'text-white']">
@@ -87,7 +87,7 @@
             <div class="w-7 h-7 rounded-full bg-white/25 flex items-center justify-center text-white text-xs font-bold shrink-0">
               {{ v.author[0] }}
             </div>
-            <span class="text-white text-xs font-medium flex-1 min-w-0 truncate drop-shadow">{{ v.author }}</span>
+            <span class="text-white text-xs font-medium truncate drop-shadow max-w-[8rem]">{{ v.author }}</span>
             <button v-if="userStore.isLoggedIn"
                     :class="['shrink-0 text-xs px-2.5 py-0.5 rounded-full font-medium transition-all',
                              followedAuthors.has(v.author) ? 'bg-white/20 text-white/70' : 'bg-primary/90 text-white']"
@@ -95,8 +95,8 @@
               {{ followedAuthors.has(v.author) ? '已关注' : '+ 关注' }}
             </button>
           </div>
-          <!-- 标题行 -->
-          <div v-if="v.title && v.title.length > 30" class="flex items-end gap-1.5">
+          <!-- 标题行（统一展开/收起，展开后显示控制按钮） -->
+          <div class="flex items-end gap-1.5">
             <p :class="['flex-1 min-w-0 text-white font-semibold text-sm leading-snug drop-shadow', expandedTitles.has(v.video_id) ? '' : 'line-clamp-2']"
                @click.stop="toggleTitle(v.video_id)">{{ v.title }}</p>
             <button class="shrink-0 mb-px bg-white/20 text-white text-xs px-2 py-0.5 rounded-full whitespace-nowrap"
@@ -104,7 +104,6 @@
               {{ expandedTitles.has(v.video_id) ? '收起' : '展开' }}
             </button>
           </div>
-          <p v-else class="text-white font-semibold text-sm leading-snug drop-shadow line-clamp-2">{{ v.title }}</p>
           <div class="flex items-center gap-1 text-white/60 text-xs mt-1.5">
             <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
               <path d="M8 5v14l11-7z"/>
@@ -137,7 +136,7 @@
               {{ fmtTime(videoTimes[idx]?.current) }} / {{ fmtTime(videoTimes[idx]?.duration || v.duration) }}
             </div>
             <div class="flex-1"></div>
-            <div class="flex items-center gap-2 overflow-x-auto controls-scroll">
+            <div class="flex items-center gap-2 overflow-x-auto" style="scrollbar-width:none">
               <button :class="['control-toggle', continuousPlay ? 'is-on' : '']" @click="toggleContinuousPlay">
                 <span class="toggle-dot"></span>
                 <span>连播</span>
@@ -146,7 +145,7 @@
                 <span class="toggle-dot"></span>
                 <span>清屏</span>
               </button>
-              <button class="control-text-btn" @click="cycleSpeed">{{ playbackRateLabel }}</button>
+              <button class="control-text-btn" @click.stop="showSpeedMenu = !showSpeedMenu">{{ playbackRateLabel }}</button>
               <button class="control-icon-btn" @click="toggleMuted" :aria-label="muted ? '打开声音' : '静音'">
                 <svg v-if="muted" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M16 9l5 5m0-5l-5 5M5 9v6h4l5 4V5L9 9H5z"/>
@@ -187,6 +186,25 @@
         </svg>
       </button>
     </div>
+
+    <!-- 倍速选择遮罩 -->
+    <div v-if="showSpeedMenu" class="absolute inset-0 z-[29]" @click="showSpeedMenu = false"/>
+    <!-- 倍速选择列表 -->
+    <transition name="fade-icon">
+      <div v-if="showSpeedMenu"
+           class="absolute bottom-14 right-3 z-30 bg-black/90 backdrop-blur rounded-xl overflow-hidden shadow-xl"
+           @click.stop>
+        <button v-for="opt in speedOptions" :key="opt.value"
+                :class="['flex items-center justify-between w-full px-5 py-3 text-sm whitespace-nowrap',
+                         playbackRate === opt.value ? 'text-pink-400 font-semibold' : 'text-white/85']"
+                @click="setSpeed(opt.value)">
+          <span>{{ opt.label }}</span>
+          <svg v-if="playbackRate === opt.value" class="w-4 h-4 ml-3 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/>
+          </svg>
+        </button>
+      </div>
+    </transition>
 
     <!-- 评论抽屉 -->
     <transition name="slide-up">
@@ -244,8 +262,14 @@ const cleanMode = ref(false)
 const continuousPlay = ref(true)
 const muted = ref(false)
 const isFullscreen = ref(false)
-const playbackRates = [1, 1.25, 1.5, 2]
-const playbackRateIdx = ref(0)
+const speedOptions = [
+  { value: 0.75, label: '0.75x 慢速' },
+  { value: 1,    label: '1x 正常' },
+  { value: 1.5,  label: '1.5x 快速' },
+  { value: 2,    label: '2x 极速' },
+]
+const playbackRate = ref(1)
+const showSpeedMenu = ref(false)
 const playStates = reactive({})
 const expandedTitles = reactive(new Set())
 const followedAuthors = reactive(new Set())
@@ -282,8 +306,7 @@ async function toggleFollow(author) {
     }
   } catch {}
 }
-const playbackRate = computed(() => playbackRates[playbackRateIdx.value])
-const playbackRateLabel = computed(() => `${playbackRate.value === 1 ? '倍速' : playbackRate.value + 'x'}`)
+const playbackRateLabel = computed(() => playbackRate.value === 1 ? '倍速' : playbackRate.value + 'x')
 
 const orderByAllowed = ['created_at', 'play_count', 'comment_count', 'favorite_count']
 const orderByRaw = route.query.order_by == null ? '' : String(route.query.order_by)
@@ -573,9 +596,10 @@ function toggleMuted() {
   videoRefs.forEach(applyVideoSettings)
 }
 
-function cycleSpeed() {
-  playbackRateIdx.value = (playbackRateIdx.value + 1) % playbackRates.length
+function setSpeed(value) {
+  playbackRate.value = value
   videoRefs.forEach(applyVideoSettings)
+  showSpeedMenu.value = false
 }
 
 function syncFullscreenState() {
@@ -836,11 +860,4 @@ async function share(v) {
   width: 18px;
 }
 
-.controls-scroll {
-  scrollbar-width: none;
-}
-
-.controls-scroll::-webkit-scrollbar {
-  display: none;
-}
 </style>
