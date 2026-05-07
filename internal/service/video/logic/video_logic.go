@@ -42,8 +42,9 @@ func (s *VideoService) GetVideoList(ctx context.Context, req *dto.VideoListReq) 
 	offset := (req.Page - 1) * req.Size
 	videos, total, err := s.videoRepo.List(ctx, offset, req.Size, filters)
 	if err != nil {
-
-		// 记录详细错误信息
+		if errs.Is(err, context.Canceled) {
+			return nil, errors.New(errors.CodeVideoNotFound, "请求已取消")
+		}
 		logger.Error("查询视频列表失败", zap.Error(err), zap.Any("filters", filters))
 		return nil, errors.New(errors.CodeVideoNotFound, "查询视频列表失败")
 	}
@@ -56,7 +57,9 @@ func (s *VideoService) GetVideoList(ctx context.Context, req *dto.VideoListReq) 
 			CoverURL:      v.CoverURL,
 			Duration:      v.Duration,
 			IsPortrait:    v.IsPortrait,
-			Author:        v.Author,
+			AuthorId:      v.UserId,
+			AuthorName:    v.AuthorName,
+			AuthorAvatar:  v.AuthorAvatar,
 			PlayURL:       BuildPlayURL(v.StorageType, v.SourceURL, v.LocalURL),
 			PlayCount:     v.PlayCount,
 			FavoriteCount: v.FavoriteCount,
@@ -97,7 +100,9 @@ func (s *VideoService) GetVideoDetail(ctx context.Context, videoId int64) (*dto.
 		CoverURL:      video.CoverURL,
 		Duration:      video.Duration,
 		IsPortrait:    video.IsPortrait,
-		Author:        video.Author,
+		AuthorId:      video.UserId,
+		AuthorName:    video.AuthorName,
+		AuthorAvatar:  video.AuthorAvatar,
 		StorageType:   video.StorageType,
 		PlayURL:       playURL,
 		PlayCount:     video.PlayCount,
@@ -123,7 +128,9 @@ func (s *VideoService) GetHotVideos(ctx context.Context, limit int) ([]dto.Video
 			CoverURL:      v.CoverURL,
 			Duration:      v.Duration,
 			IsPortrait:    v.IsPortrait,
-			Author:        v.Author,
+			AuthorId:      v.UserId,
+			AuthorName:    v.AuthorName,
+			AuthorAvatar:  v.AuthorAvatar,
 			PlayURL:       BuildPlayURL(v.StorageType, v.SourceURL, v.LocalURL),
 			PlayCount:     v.PlayCount,
 			FavoriteCount: v.FavoriteCount,

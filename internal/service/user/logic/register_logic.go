@@ -103,7 +103,8 @@ func (l *RegisterLogic) Register(req *RegisterReq) (*RegisterResp, error) {
 		Username: req.Username,
 		Password: hashedPassword,
 		Email:    req.Email,
-		Status:   1, // 默认正常状态
+		Status:   1,
+		Avatar:   "/logo.png", // 存相对路径，返回时动态拼域名（public/ 目录下的文件在前端根路径可访问）
 	}
 
 	// 保存到数据库

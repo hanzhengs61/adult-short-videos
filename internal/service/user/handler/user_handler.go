@@ -3,6 +3,10 @@ package handler
 import (
 	"crypto/sha256"
 	"fmt"
+	"io"
+	"mime/multipart"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -11,6 +15,7 @@ import (
 	"adult-short-videos/internal/pkg/errors"
 	"adult-short-videos/internal/pkg/response"
 	"adult-short-videos/internal/pkg/utils"
+	"adult-short-videos/internal/service/user/dto"
 	"adult-short-videos/internal/service/user/logic"
 	"adult-short-videos/internal/service/user/repository"
 
@@ -21,19 +26,21 @@ import (
 // UserHandler 用户处理器
 // 包含所有依赖项
 type UserHandler struct {
-	db        *gorm.DB
-	userRepo  repository.UserRepository
-	jwtSecret string
-	jwtExpire int64
+	db                  *gorm.DB
+	userRepo            repository.UserRepository
+	jwtSecret           string
+	jwtExpire           int64
+	staticAssetsBaseURL string // 静态资源基础 URL，用于拼接默认头像等
 }
 
 // NewUserHandler 创建用户处理器实例
-func NewUserHandler(db *gorm.DB, jwtSecret string, jwtExpire int64) *UserHandler {
+func NewUserHandler(db *gorm.DB, jwtSecret string, jwtExpire int64, staticAssetsBaseURL string) *UserHandler {
 	return &UserHandler{
-		db:        db,
-		userRepo:  repository.NewUserRepository(db),
-		jwtSecret: jwtSecret,
-		jwtExpire: jwtExpire,
+		db:                  db,
+		userRepo:            repository.NewUserRepository(db),
+		jwtSecret:           jwtSecret,
+		jwtExpire:           jwtExpire,
+		staticAssetsBaseURL: staticAssetsBaseURL,
 	}
 }
 
@@ -149,14 +156,29 @@ func (h *UserHandler) GetUserInfo(c *gin.Context) {
 		return
 	}
 
-	// 3: 返回用户信息
-	// 构建响应数据（不包含敏感信息）
+	// 3: 返回用户信息（不含密码等敏感字段）
+	avatarURL := user.Avatar
+	if avatarURL != "" {
+		avatarURL = h.staticAssetsBaseURL + avatarURL
+	}
+	// *_changed_at 以 Unix 秒返回，前端用于计算 30 天冷却期；null 表示从未修改过
+	toUnixPtr := func(t *time.Time) *int64 {
+		if t == nil {
+			return nil
+		}
+		v := t.Unix()
+		return &v
+	}
 	userInfo := map[string]interface{}{
-		"user_id":    user.UserId,
-		"username":   user.Username,
-		"email":      user.Email,
-		"avatar":     user.Avatar,
-		"created_at": user.CreatedAt.Unix(),
+		"user_id":             user.UserId,
+		"username":            user.Username,
+		"email":               user.Email,
+		"avatar":              avatarURL,
+		"bio":                 user.Bio,
+		"role":                user.Role,
+		"username_changed_at": toUnixPtr(user.UsernameChangedAt),
+		"avatar_changed_at":   toUnixPtr(user.AvatarChangedAt),
+		"created_at":          user.CreatedAt.Unix(),
 	}
 
 	response.Success(c, userInfo)
@@ -193,6 +215,103 @@ func (h *UserHandler) Logout(c *gin.Context) {
 	}
 
 	response.SuccessWithMsg(c, "已退出登录", nil)
+}
+
+// UpdateProfile 更新用户昵称和简介
+// 路由: PUT /api/user/profile
+func (h *UserHandler) UpdateProfile(c *gin.Context) {
+	userId, _ := c.Get("user_id")
+	var req dto.UpdateProfileReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, errors.CodeInvalidParam, "参数格式错误")
+		return
+	}
+	svc := logic.NewUserService(h.userRepo, h.db, h.jwtSecret, h.jwtExpire)
+	resp, err := svc.UpdateProfile(c.Request.Context(), userId.(int64), &req)
+	if err != nil {
+		response.HandleError(c, err)
+		return
+	}
+	response.SuccessWithMsg(c, "保存成功", resp)
+}
+
+// UploadAvatar 上传用户头像
+// 路由: POST /api/user/avatar，multipart field: file
+func (h *UserHandler) UploadAvatar(c *gin.Context) {
+	userId, _ := c.Get("user_id")
+	uid := userId.(int64)
+
+	fh, err := c.FormFile("file")
+	if err != nil {
+		response.Error(c, errors.CodeInvalidParam, "请选择图片文件")
+		return
+	}
+
+	// 限制 5MB
+	if fh.Size > 5*1024*1024 {
+		response.Error(c, errors.CodeInvalidParam, "图片不能超过 5MB")
+		return
+	}
+
+	ext, ok := allowedImageExt(fh)
+	if !ok {
+		response.Error(c, errors.CodeInvalidParam, "仅支持 jpg/png/gif/webp 格式")
+		return
+	}
+
+	dir := "./uploads/avatars"
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		response.Error(c, errors.CodeServerError, "存储目录创建失败")
+		return
+	}
+
+	// 文件名：用户ID + 时间戳，避免冲突和猜测
+	filename := fmt.Sprintf("%d_%d%s", uid, time.Now().UnixMilli(), ext)
+	dst := filepath.Join(dir, filename)
+
+	src, err := fh.Open()
+	if err != nil {
+		response.Error(c, errors.CodeServerError, "文件读取失败")
+		return
+	}
+	defer src.Close()
+
+	out, err := os.Create(dst)
+	if err != nil {
+		response.Error(c, errors.CodeServerError, "文件保存失败")
+		return
+	}
+	defer out.Close()
+	if _, err = io.Copy(out, src); err != nil {
+		response.Error(c, errors.CodeServerError, "文件写入失败")
+		return
+	}
+
+	// 数据库只存相对路径，BaseURL 在返回时拼接，方便上线切换域名
+	relativePath := "/uploads/avatars/" + filename
+	svc := logic.NewUserService(h.userRepo, h.db, h.jwtSecret, h.jwtExpire)
+	if err := svc.UpdateAvatar(c.Request.Context(), uid, relativePath); err != nil {
+		response.HandleError(c, err)
+		return
+	}
+
+	response.Success(c, map[string]string{
+		"avatar": h.staticAssetsBaseURL + relativePath,
+	})
+}
+
+// allowedImageExt 校验图片类型，返回规范扩展名
+func allowedImageExt(fh *multipart.FileHeader) (string, bool) {
+	name := strings.ToLower(fh.Filename)
+	for _, ext := range []string{".jpg", ".jpeg", ".png", ".gif", ".webp"} {
+		if strings.HasSuffix(name, ext) {
+			if ext == ".jpeg" {
+				return ".jpg", true
+			}
+			return ext, true
+		}
+	}
+	return "", false
 }
 
 // GetTopCreators 创作者榜
@@ -241,7 +360,7 @@ func (h *UserHandler) GetTopCreators(c *gin.Context) {
 		items = append(items, creatorItem{
 			UserId:     r.UserId,
 			Username:   r.Username,
-			Avatar:     r.Avatar,
+			Avatar:     h.staticAssetsBaseURL + r.Avatar,
 			VideoCount: r.VideoCount,
 			TotalPlays: r.TotalPlays,
 			Score:      float64(r.VideoCount)*10 + float64(r.TotalPlays)*0.001,

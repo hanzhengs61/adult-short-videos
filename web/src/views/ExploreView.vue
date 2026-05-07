@@ -1,6 +1,28 @@
 <template>
   <div class="max-w-screen-2xl mx-auto px-3 sm:px-4 py-4">
 
+    <!-- 顶部搜索框 -->
+    <form class="mb-5" @submit.prevent="doSearch()">
+      <div class="relative">
+        <input v-model="searchInput" type="text" placeholder="搜索视频、创作者..."
+               class="w-full h-11 pl-11 pr-10 bg-bg-surface border border-border rounded-full text-text-primary
+                 text-sm placeholder-text-muted outline-none transition-all
+                 focus:border-primary/60 focus:ring-1 focus:ring-primary/20"/>
+        <svg class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none"
+             fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+             viewBox="0 0 24 24">
+          <circle cx="11" cy="11" r="8"/>
+          <path d="M21 21l-4.35-4.35"/>
+        </svg>
+        <button v-if="searchInput" type="button" @click="clearSearch"
+                class="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary transition-colors">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+    </form>
+
     <!-- 搜索结果（有搜索词时始终展示） -->
     <div v-if="currentQuery" class="animate-slide-up">
       <div class="flex items-center justify-between mb-3">
@@ -129,9 +151,13 @@
 
             <!-- 创作者头像 -->
             <div class="p-3 flex items-center gap-2.5 border-b border-border/50">
-              <div class="w-9 h-9 rounded-full bg-gradient-primary flex items-center justify-center
-                          text-white font-bold text-sm shrink-0 group-hover:shadow-glow transition-shadow">
-                {{ actor.name[0] }}
+              <div class="w-9 h-9 rounded-full bg-gradient-primary p-0.5 shrink-0 group-hover:shadow-glow transition-shadow">
+                <div class="w-full h-full rounded-full bg-bg overflow-hidden flex items-center justify-center">
+                  <img v-if="actor.avatar" :src="actor.avatar" :alt="actor.name"
+                       class="w-full h-full object-cover"
+                       @error="e => e.target.style.display='none'"/>
+                  <span v-if="!actor.avatar" class="text-white font-bold text-sm">{{ actor.name[0] }}</span>
+                </div>
               </div>
               <div class="min-w-0">
                 <p class="text-xs font-semibold text-text-primary truncate group-hover:text-primary transition-colors">
@@ -292,6 +318,7 @@ async function fetchActors() {
     actors.value = (res.data?.creators || []).map(c => ({
       actor_id: c.user_id,
       name: c.username,
+      avatar: c.avatar || '',
       videos: [],
     }))
     if (!actors.value.length) {

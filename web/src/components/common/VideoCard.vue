@@ -73,15 +73,13 @@
         {{ video.title }}
       </h3>
       <div class="flex items-center gap-1.5">
-        <!-- 头像 -->
-        <div class="w-5 h-5 rounded-full flex items-center justify-center
-                    text-white text-[9px] font-bold shrink-0 overflow-hidden"
-             :style="{ background: avatarColor(video.video_id) }">
-          {{ avatarLetter(video.author) }}
-        </div>
+        <!-- 头像：有则显示用户头像，无则默认 logo -->
+        <img :src="video.author_avatar || '/logo.png'" :alt="video.author_name"
+             class="w-5 h-5 rounded-full shrink-0 object-cover"
+             @error="e => e.target.src='/logo.png'"/>
         <!-- 用户名 -->
         <span class="text-text-muted text-[10px] flex-1 truncate leading-none">
-          {{ video.author || '投稿者' }}
+          {{ video.author_name || '投稿者' }}
         </span>
         <!-- 发布时间 -->
         <span class="text-text-muted text-[10px] shrink-0 leading-none">

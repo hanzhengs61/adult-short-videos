@@ -26,6 +26,9 @@ type UserRepository interface {
 
 	// UpdateLastLogin 更新最后登录信息
 	UpdateLastLogin(ctx context.Context, userId int64, ip string) error
+
+	// UpdateByMap 按字段名 map 精确更新，支持零值覆盖
+	UpdateByMap(ctx context.Context, userId int64, updates map[string]interface{}) error
 }
 
 // userRepository 用户仓储实现
@@ -98,6 +101,11 @@ func (r *userRepository) Update(ctx context.Context, user *model.User) error {
 	return r.db.WithContext(ctx).
 		Model(user).
 		Updates(user).Error
+}
+
+// UpdateByMap 按字段名 map 精确更新，支持零值覆盖
+func (r *userRepository) UpdateByMap(ctx context.Context, userId int64, updates map[string]interface{}) error {
+	return r.db.WithContext(ctx).Model(&model.User{}).Where("user_id = ?", userId).Updates(updates).Error
 }
 
 // UpdateLastLogin 更新最后登录信息

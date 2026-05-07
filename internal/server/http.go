@@ -64,15 +64,18 @@ func buildRouter(cfg *config.Config, db *gorm.DB) *gin.Engine {
 		r.GET(cfg.Metrics.Path, gin.WrapH(promhttp.Handler()))
 	}
 
+	// 用户上传的静态文件（头像等）；生产环境可换 Nginx/CDN 直接服务，此行可注释掉
+	r.Static("/uploads", "./uploads")
+
 	api := r.Group("/api")
-	userHandler.RegisterRoutes(api, db, cfg.JWT.Secret, cfg.JWT.AccessExpire)
+	userHandler.RegisterRoutes(api, db, cfg.JWT.Secret, cfg.JWT.AccessExpire, cfg.Server.StaticAssetsBaseURL)
 	videoHandler.RegisterRoutes(api, db)
 	favoriteHandler.RegisterRoutes(api, db, cfg.JWT.Secret)
 	playHandler.RegisterRoutes(api, db, cfg.JWT.Secret)
 	storageHandler.RegisterRoutes(api)
 	searchHandler.RegisterRoutes(api, db)
 	commentHandler.RegisterRoutes(api, db, cfg.JWT.Secret)
-	followHandler.RegisterRoutes(api, db, cfg.JWT.Secret)
+	followHandler.RegisterRoutes(api, db, cfg.JWT.Secret, cfg.Server.StaticAssetsBaseURL)
 
 	return r
 }

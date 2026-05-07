@@ -20,11 +20,12 @@ type Config struct {
 
 // ServerConfig 服务器配置
 type ServerConfig struct {
-	Port         string        `yaml:"port"`
-	Mode         string        `yaml:"mode"` // debug, release
-	ReadTimeout  time.Duration `yaml:"read_timeout"`
-	WriteTimeout time.Duration `yaml:"write_timeout"`
-	CORSOrigins  string        `yaml:"cors_origins"` // 逗号分隔允许的 Origin
+	Port                string        `yaml:"port"`
+	Mode                string        `yaml:"mode"` // debug, release
+	ReadTimeout         time.Duration `yaml:"read_timeout"`
+	WriteTimeout        time.Duration `yaml:"write_timeout"`
+	CORSOrigins         string        `yaml:"cors_origins"`           // 逗号分隔允许的 Origin
+	StaticAssetsBaseURL string        `yaml:"static_assets_base_url"` // 静态资源域名，为空时使用相对路径
 }
 
 // DatabaseConfig 数据库配置
@@ -117,6 +118,7 @@ func Load(path string) (*Config, error) {
 	// 服务器
 	overrideString(&config.Server.Mode, "SERVER_MODE")
 	overrideString(&config.Server.CORSOrigins, "CORS_ORIGINS")
+	overrideString(&config.Server.StaticAssetsBaseURL, "STATIC_ASSETS_BASE_URL")
 
 	if config.Database.SSLMode == "" {
 		config.Database.SSLMode = "disable"

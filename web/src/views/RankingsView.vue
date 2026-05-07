@@ -46,10 +46,8 @@
             {{ i + 1 }}
           </div>
           <!-- 头像 -->
-          <div :class="['w-10 h-10 rounded-full flex items-center justify-center font-bold text-white shrink-0',
-            i===0 ? 'bg-yellow-500' : i===1 ? 'bg-gray-400' : i===2 ? 'bg-amber-600' : 'bg-gradient-primary']">
-            {{ (c.username || '?')[0].toUpperCase() }}
-          </div>
+          <img src="/logo.png" :alt="c.username"
+               class="w-10 h-10 rounded-full shrink-0 object-cover"/>
           <!-- 信息 -->
           <div class="flex-1 min-w-0">
             <p class="text-sm font-semibold text-text-primary group-hover:text-primary transition-colors truncate">

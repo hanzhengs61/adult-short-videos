@@ -40,8 +40,21 @@ type UserInfoResp struct {
 	Username string `json:"username"`
 	Email    string `json:"email"`
 	Avatar   string `json:"avatar"`
+	Bio      string `json:"bio"`
+	Role     string `json:"role"`
 	Status   int32  `json:"status"`
-	// 其他用户信息字段
+}
+
+// UpdateProfileReq 更新用户资料请求
+type UpdateProfileReq struct {
+	Username string `json:"username"`
+	Bio      string `json:"bio"`
+}
+
+// UpdateProfileResp 更新用户资料响应
+type UpdateProfileResp struct {
+	Username string `json:"username"`
+	Bio      string `json:"bio"`
 }
 
 // CreatorItem 创作者榜单项

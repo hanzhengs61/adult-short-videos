@@ -7,8 +7,8 @@ import (
 	"gorm.io/gorm"
 )
 
-func RegisterRoutes(rg *gin.RouterGroup, db *gorm.DB, jwtSecret string, jwtExpire int64) {
-	h := NewUserHandler(db, jwtSecret, jwtExpire)
+func RegisterRoutes(rg *gin.RouterGroup, db *gorm.DB, jwtSecret string, jwtExpire int64, staticAssetsBaseURL string) {
+	h := NewUserHandler(db, jwtSecret, jwtExpire, staticAssetsBaseURL)
 	g := rg.Group("/user")
 	g.POST("/register", h.Register)
 	g.POST("/login", h.Login)
@@ -17,5 +17,7 @@ func RegisterRoutes(rg *gin.RouterGroup, db *gorm.DB, jwtSecret string, jwtExpir
 	auth := g.Group("")
 	auth.Use(middleware.AuthMiddleware(jwtSecret))
 	auth.GET("/info", h.GetUserInfo)
+	auth.PUT("/profile", h.UpdateProfile)
+	auth.POST("/avatar", h.UploadAvatar)
 	auth.POST("/logout", h.Logout)
 }

@@ -236,6 +236,59 @@ func (s *UserService) GetTopCreators(ctx context.Context, limit int) ([]dto.Crea
 	return items, nil
 }
 
+// UpdateProfile 更新用户昵称和个人简介，昵称 30 天内只能修改一次
+func (s *UserService) UpdateProfile(ctx context.Context, userId int64, req *dto.UpdateProfileReq) (*dto.UpdateProfileResp, error) {
+	user, err := s.userRepo.FindByID(ctx, userId)
+	if err != nil {
+		return nil, errors.New(errors.CodeUserNotFound, "用户不存在")
+	}
+
+	updates := map[string]interface{}{}
+
+	if req.Username != "" && req.Username != user.Username {
+		if user.UsernameChangedAt != nil && time.Since(*user.UsernameChangedAt) < 30*24*time.Hour {
+			return nil, errors.New(errors.CodeInvalidParam, "昵称30天内只能修改一次")
+		}
+		existing, _ := s.userRepo.FindByUsername(ctx, req.Username)
+		if existing != nil && existing.UserId != userId {
+			return nil, errors.New(errors.CodeUserExists, "用户名已被使用")
+		}
+		updates["username"] = req.Username
+		now := time.Now()
+		updates["username_changed_at"] = now
+		user.Username = req.Username
+	}
+
+	// bio 始终更新，允许置空
+	updates["bio"] = req.Bio
+	user.Bio = req.Bio
+
+	if err := s.userRepo.UpdateByMap(ctx, userId, updates); err != nil {
+		return nil, errors.New(errors.CodeDatabaseError, "更新失败")
+	}
+
+	return &dto.UpdateProfileResp{Username: user.Username, Bio: user.Bio}, nil
+}
+
+// UpdateAvatar 更新用户头像，30 天内只能修改一次
+func (s *UserService) UpdateAvatar(ctx context.Context, userId int64, relativePath string) error {
+	user, err := s.userRepo.FindByID(ctx, userId)
+	if err != nil {
+		return errors.New(errors.CodeUserNotFound, "用户不存在")
+	}
+	if user.AvatarChangedAt != nil && time.Since(*user.AvatarChangedAt) < 30*24*time.Hour {
+		return errors.New(errors.CodeInvalidParam, "头像30天内只能修改一次")
+	}
+	now := time.Now()
+	if err := s.userRepo.UpdateByMap(ctx, userId, map[string]interface{}{
+		"avatar":            relativePath,
+		"avatar_changed_at": now,
+	}); err != nil {
+		return errors.New(errors.CodeDatabaseError, "更新头像失败")
+	}
+	return nil
+}
+
 func (s *UserService) recordLoginLog(userId int64, loginType string, success bool, failReason, clientIP, userAgent string) {
 	status := int32(1)
 	if !success {

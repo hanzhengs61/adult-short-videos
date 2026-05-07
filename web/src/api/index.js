@@ -6,6 +6,12 @@ export const userApi = {
     login: data => request.post('/user/login', data),
     logout: () => request.post('/user/logout'),
     info: () => request.get('/user/info'),
+    updateProfile: data => request.put('/user/profile', data),
+    uploadAvatar: file => {
+      const fd = new FormData()
+      fd.append('file', file)
+      return request.post('/user/avatar', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+    },
     creators: (limit = 20) => request.get('/user/creators', { params: { limit } }),
 }
 
