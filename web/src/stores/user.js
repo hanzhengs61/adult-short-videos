@@ -45,7 +45,14 @@ export const useUserStore = defineStore('user', () => {
         try {
             const res = await userApi.info()
             userInfo.value = res.data
-        } catch {
+        } catch (err) {
+            // 用户不存在或被禁用时，服务端返回 401/403，清除本地登录态
+            const status = err?.response?.status
+            if (status === 401 || status === 403) {
+                token.value = ''
+                userInfo.value = null
+                localStorage.removeItem('access_token')
+            }
         }
     }
 

@@ -9,9 +9,8 @@
     <div class="space-y-4">
       <div v-for="c in comments" :key="c.comment_id"
            class="flex gap-3 p-4 rounded-xl bg-bg-surface border border-border/50">
-        <div class="w-8 h-8 rounded-full bg-gradient-primary flex items-center justify-center
-                    text-white text-sm font-bold shrink-0">
-          {{ c.username?.[0]?.toUpperCase() || 'U' }}
+        <div class="w-8 h-8 rounded-full overflow-hidden shrink-0">
+          <img :src="c.avatar || '/logo.png'" :alt="c.username" class="w-full h-full object-cover"/>
         </div>
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2 mb-1">

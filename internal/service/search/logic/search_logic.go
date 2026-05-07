@@ -55,16 +55,16 @@ func (s *SearchService) Search(ctx context.Context, req *dto.SearchReq) (*dto.Se
 
 	items := make([]dto.VideoSearchItem, 0, len(videos))
 	for _, v := range videos {
-		// 使用 video 模块的 BuildPlayURL
-		playURL := videoLogic.BuildPlayURL(v.StorageType, v.SourceURL, v.LocalURL)
 		items = append(items, dto.VideoSearchItem{
 			VideoId:       v.VideoId,
 			Title:         v.Title,
 			CoverURL:      v.CoverURL,
 			Duration:      v.Duration,
 			IsPortrait:    v.IsPortrait,
-			Author:        v.Author,
-			PlayURL:       playURL,
+			AuthorId:      v.UserId,
+			AuthorName:    v.AuthorName,
+			AuthorAvatar:  v.AuthorAvatar,
+			PlayURL:       videoLogic.BuildPlayURL(v.StorageType, v.SourceURL, v.LocalURL),
 			PlayCount:     v.PlayCount,
 			FavoriteCount: v.FavoriteCount,
 			PublishedAt:   v.PublishedAt.Unix(),

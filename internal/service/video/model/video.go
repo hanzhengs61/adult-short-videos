@@ -22,9 +22,8 @@ type Video struct {
 	ShareCount    int64 `gorm:"default:0;comment:分享数" json:"share_count"`
 
 	// ========== 媒体属性 ==========
-	IsPortrait bool   `gorm:"default:false;comment:是否竖屏视频" json:"is_portrait"`
-	Author     string `gorm:"type:varchar(100);default:'';comment:上传者用户名，对应 users.username" json:"author"`
-	UserId     int64  `gorm:"default:0;index;comment:关联用户ID，0=未关联" json:"user_id"`
+	IsPortrait bool  `gorm:"default:false;comment:是否竖屏视频" json:"is_portrait"`
+	UserId     int64 `gorm:"default:0;index;comment:关联用户ID，0=未关联" json:"user_id"`
 
 	// ========== 状态 ==========
 	Status int32 `gorm:"default:1;index;comment:0:下架 1:正常" json:"status"`
@@ -37,6 +36,14 @@ type Video struct {
 
 func (Video) TableName() string {
 	return "videos"
+}
+
+// VideoWithAuthor repository 层 JOIN 查询的扫描目标
+// AuthorName/AuthorAvatar 由 COALESCE(u.username/avatar, ”) 填充
+type VideoWithAuthor struct {
+	Video
+	AuthorName   string
+	AuthorAvatar string
 }
 
 // VideoHeatStats 视频热度统计表

@@ -83,16 +83,18 @@
         <!-- 底部信息 -->
         <div v-if="!cleanMode" class="absolute left-3 right-16 bottom-24">
           <!-- 作者行 -->
-          <div v-if="v.author" class="flex items-center gap-2 mb-2">
-            <div class="w-7 h-7 rounded-full bg-white/25 flex items-center justify-center text-white text-xs font-bold shrink-0">
-              {{ v.author[0] }}
+          <div v-if="v.author_name" class="flex items-center gap-2 mb-2">
+            <div class="w-7 h-7 rounded-full overflow-hidden bg-white/25 shrink-0 flex items-center justify-center text-white text-xs font-bold">
+              <img v-if="v.author_avatar" :src="v.author_avatar" :alt="v.author_name"
+                   class="w-full h-full object-cover" @error="e => e.target.style.display='none'"/>
+              <span v-if="!v.author_avatar">{{ v.author_name[0] }}</span>
             </div>
-            <span class="text-white text-xs font-medium truncate drop-shadow max-w-[8rem]">{{ v.author }}</span>
+            <span class="text-white text-xs font-medium truncate drop-shadow max-w-[8rem]">{{ v.author_name }}</span>
             <button v-if="userStore.isLoggedIn"
                     :class="['shrink-0 text-xs px-2.5 py-0.5 rounded-full font-medium transition-all',
-                             followedAuthors.has(v.author) ? 'bg-white/20 text-white/70' : 'bg-primary/90 text-white']"
-                    @click.stop="toggleFollow(v.author)">
-              {{ followedAuthors.has(v.author) ? '已关注' : '+ 关注' }}
+                             followedAuthors.has(v.author_name) ? 'bg-white/20 text-white/70' : 'bg-primary/90 text-white']"
+                    @click.stop="toggleFollow(v.author_name)">
+              {{ followedAuthors.has(v.author_name) ? '已关注' : '+ 关注' }}
             </button>
           </div>
           <!-- 标题行（统一展开/收起，展开后显示控制按钮） -->
@@ -574,7 +576,7 @@ async function fetchMore() {
     // 否则当目标视频重复被过滤时，会误判”已到底”，导致无法继续滑动。
     if (rawList.length < pageSize) hasMore.value = false
     await checkFavorites(list)
-    await checkFollowStatus(list.map(v => v.author))
+    await checkFollowStatus(list.map(v => v.author_name))
     await nextTick()
     observeItems()
     observeSentinel()
@@ -667,7 +669,7 @@ onMounted(async () => {
     }
 
     await checkFavorites(videos.value)
-    await checkFollowStatus(videos.value.map(v => v.author))
+    await checkFollowStatus(videos.value.map(v => v.author_name))
     await nextTick()
     if (container.value) container.value.scrollTop = foundIdx * screenH.value
     // 等浏览器真正落实滚动，避免 IntersectionObserver 用旧 scrollTop=0

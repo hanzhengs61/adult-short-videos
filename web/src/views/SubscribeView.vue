@@ -57,7 +57,10 @@
               <div class="w-14 h-14 rounded-full p-0.5"
                    :class="u.hasNew ? 'bg-gradient-primary' : 'bg-border'">
                 <div class="w-full h-full rounded-full bg-bg overflow-hidden flex items-center justify-center">
-                  <span class="font-bold text-lg text-text-primary">{{ u.name[0] }}</span>
+                  <img v-if="u.avatar" :src="u.avatar" :alt="u.name"
+                       class="w-full h-full object-cover"
+                       @error="e => e.target.style.display='none'"/>
+                  <span v-if="!u.avatar" class="font-bold text-lg text-text-primary">{{ u.name[0] }}</span>
                 </div>
               </div>
               <span v-if="u.hasNew"
@@ -116,7 +119,11 @@ onMounted(async () => {
   if (!userStore.isLoggedIn) return
   try {
     const res = await followApi.list()
-    following.value = (res.data?.authors || []).map(name => ({ name, hasNew: false }))
+    following.value = (res.data?.authors || []).map(u => ({
+      name: u.name,
+      avatar: u.avatar || '',
+      hasNew: false,
+    }))
   } catch {}
 })
 

@@ -224,8 +224,7 @@ func parseAndUpsert(db *gorm.DB, client *http.Client, htmlStr string, selectedUs
 			SourceURL:   sourceURL,
 			PlayCount:   playCount,
 			IsPortrait:  isPortrait,
-			Author:      selectedUser.Username, // 使用你选择的作者名字
-			UserId:      selectedUser.UserId,   // 使用你选择的 ID
+			UserId:      selectedUser.UserId,
 			Status:      1,
 			RemoteId:    remoteID,
 			PublishedAt: time.Now(),
@@ -235,7 +234,7 @@ func parseAndUpsert(db *gorm.DB, client *http.Client, htmlStr string, selectedUs
 			Columns: []clause.Column{{Name: "remote_id"}},
 			DoUpdates: clause.AssignmentColumns([]string{
 				"title", "cover_url", "source_url", "play_count",
-				"duration", "is_portrait", "author", "user_id",
+				"duration", "is_portrait", "user_id",
 			}),
 		}).Create(&v)
 

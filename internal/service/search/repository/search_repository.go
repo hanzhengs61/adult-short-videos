@@ -11,8 +11,7 @@ import (
 
 // SearchRepository 搜索仓储接口
 type SearchRepository interface {
-	// SearchVideos 搜索视频
-	SearchVideos(ctx context.Context, keyword string, offset, limit int, filters map[string]interface{}) ([]*videoModel.Video, int64, error)
+	SearchVideos(ctx context.Context, keyword string, offset, limit int, filters map[string]interface{}) ([]*videoModel.VideoWithAuthor, int64, error)
 }
 
 type searchRepository struct {
@@ -24,41 +23,43 @@ func NewSearchRepository(db *gorm.DB) SearchRepository {
 	return &searchRepository{db: db}
 }
 
-// SearchVideos 按标题或标签搜索视频
-func (r *searchRepository) SearchVideos(ctx context.Context, keyword string, offset, limit int, filters map[string]interface{}) ([]*videoModel.Video, int64, error) {
-	var videos []*videoModel.Video
+// SearchVideos 按标题搜索视频，LEFT JOIN users 获取实时作者信息
+func (r *searchRepository) SearchVideos(ctx context.Context, keyword string, offset, limit int, filters map[string]interface{}) ([]*videoModel.VideoWithAuthor, int64, error) {
 	var total int64
-
-	// 关键词预处理
 	keyword = strings.TrimSpace(keyword)
 	if keyword == "" {
-		return videos, 0, nil
+		return nil, 0, nil
 	}
-
-	// 模糊匹配关键词
 	like := "%" + keyword + "%"
 
-	query := r.db.WithContext(ctx).
-		Model(&videoModel.Video{}).
-		Where("status = 1").
-		Where("title ILIKE ?", like)
-
-	orderCol := "created_at"
-	if col, ok := filters["order_by"].(string); ok {
-		switch col {
-		case "play_count", "comment_count", "favorite_count", "created_at":
-			orderCol = col
-		}
-	}
-
-	if err := query.Count(&total).Error; err != nil {
+	if err := r.db.WithContext(ctx).Model(&videoModel.Video{}).
+		Where("status = 1 AND title ILIKE ?", like).
+		Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	err := query.Order(orderCol + " DESC").
+	orderCol := "v.created_at"
+	if col, ok := filters["order_by"].(string); ok {
+		switch col {
+		case "play_count", "favorite_count":
+			orderCol = "v." + col
+		case "created_at":
+			orderCol = "v.created_at"
+		}
+	}
+
+	var videos []*videoModel.VideoWithAuthor
+	err := r.db.WithContext(ctx).
+		Table("videos v").
+		Select(`v.*,
+			COALESCE(u.username, '') AS author_name,
+			COALESCE(u.avatar, '')   AS author_avatar`).
+		Joins(`LEFT JOIN users u ON v.user_id > 0 AND u.user_id = v.user_id AND u.status = 1`).
+		Where("v.status = 1 AND v.title ILIKE ?", like).
+		Order(orderCol + " DESC").
 		Offset(offset).
 		Limit(limit).
-		Find(&videos).Error
+		Scan(&videos).Error
 
 	return videos, total, err
 }

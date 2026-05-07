@@ -7,7 +7,9 @@ type VideoItem struct {
 	CoverURL      string `json:"cover_url"`
 	Duration      int32  `json:"duration"` // 秒
 	IsPortrait    bool   `json:"is_portrait"`
-	Author        string `json:"author"`
+	AuthorId      int64  `json:"author_id"`
+	AuthorName    string `json:"author_name"`
+	AuthorAvatar  string `json:"author_avatar"`
 	PlayURL       string `json:"play_url"`
 	PlayCount     int64  `json:"play_count"`
 	FavoriteCount int64  `json:"favorite_count"`
@@ -22,7 +24,9 @@ type VideoDetail struct {
 	CoverURL      string `json:"cover_url"`
 	Duration      int32  `json:"duration"`
 	IsPortrait    bool   `json:"is_portrait"`
-	Author        string `json:"author"`
+	AuthorId      int64  `json:"author_id"`
+	AuthorName    string `json:"author_name"`
+	AuthorAvatar  string `json:"author_avatar"`
 	StorageType   string `json:"storage_type"`
 	PlayURL       string `json:"play_url"`
 	PlayCount     int64  `json:"play_count"`
