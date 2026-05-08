@@ -76,6 +76,9 @@
         *   `/profile`: 映射到 `ProfileView.vue` (个人主页)。
         *   `/video/:id`: 映射到 `VideoDetail.vue` (视频详情页)，`:id` 是动态参数，用于获取特定视频的详情。
         *   `/feed`: 映射到 `FeedView.vue` (沉浸式视频流页)。
+        *   `/gossip`: 映射到 `GossipView.vue` (吃瓜文章列表页)。
+        *   `/gossip/:id`: 映射到 `GossipDetailView.vue` (吃瓜文章详情页)。
+        *   `/favorites`: 映射到 `FavoritesView.vue` (收藏列表页)。
     *   **`scrollBehavior: () => ({top: 0})`**: 配置路由切换时，页面滚动到顶部，提供更好的用户体验。
 
 ### `src/views/` (页面组件)
@@ -121,6 +124,18 @@
 *   **`VideoDetail.vue`**:
     *   **业务作用**: 展示单个视频的详细信息页面。
     *   **可能包含**: 视频播放器、视频标题、描述、创作者信息、评论区、相关推荐视频。
+
+*   **`GossipView.vue`**:
+    *   **业务作用**: 吃瓜栏目的文章列表页，路由 `/gossip`。
+    *   **核心功能**: 顶部标签筛选（全部/爆料/八卦/女优等）、三列卡片瀑布流、无限滚动加载，调用 `gossipApi.list`。
+
+*   **`GossipDetailView.vue`**:
+    *   **业务作用**: 吃瓜文章详情页，路由 `/gossip/:id`。
+    *   **核心功能**: 封面图、标题、标签、正文（`v-html` 渲染 HTML）、浏览数，底部挂关联视频推荐，调用 `gossipApi.detail`。
+
+*   **`FavoritesView.vue`**:
+    *   **业务作用**: 用户收藏列表页，路由 `/favorites`，复用首页瀑布流布局。
+    *   **核心功能**: 与 `HomeView` 相同的骨架屏 + 瀑布流 + 无限滚动，数据来源改为 `favoriteApi.list`；未登录时展示引导登录提示，已登录无收藏时引导去首页。
 
 ### `src/components/common/` (通用组件)
 这些文件是可在多个页面或组件中复用的 UI 模块。
@@ -198,3 +213,4 @@
         *   **`favoriteApi`**: 包含 `add`, `remove`, `list`, `check` 等收藏相关的接口。
         *   **`playApi`**: 包含 `record`, `history` 等播放历史相关的接口。
         *   **`commentApi`**: 包含 `list`, `add`, `like`, `delete` 等评论相关的接口。
+        *   **`gossipApi`**: 包含 `list`, `detail` 等吃瓜文章相关的接口。
