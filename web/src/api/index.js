@@ -52,6 +52,12 @@ export const followApi = {
     feed: params => request.get('/follow/feed', { params }),
 }
 
+// 吃瓜
+export const gossipApi = {
+    list: params => request.get('/gossip/list', { params }),
+    detail: id => request.get(`/gossip/detail/${id}`),
+}
+
 // 评论
 export const commentApi = {
     list: params => request.get('/comment/list', {params}),

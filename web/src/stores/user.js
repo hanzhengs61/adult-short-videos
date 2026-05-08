@@ -25,7 +25,7 @@ export const useUserStore = defineStore('user', () => {
         const res = await userApi.login(data)
         token.value = res.data.access_token
         localStorage.setItem('access_token', res.data.access_token)
-        userInfo.value = {user_id: res.data.user_id, username: res.data.username}
+        userInfo.value = {user_id: res.data.user_id, username: res.data.username, role: res.data.role}
         closeAuth()
         return res
     }

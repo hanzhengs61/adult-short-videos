@@ -67,7 +67,7 @@ const deferredPrompt = ref(null)
 
 const desktopNav = [
   {label: '首页', to: '/'},
-  {label: '订阅', to: '/subscribe'},
+  {label: '吃瓜', to: '/gossip'},
   {label: '探索', to: '/explore'},
   {label: '榜单', to: '/rankings'},
 ]

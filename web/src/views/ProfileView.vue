@@ -66,7 +66,7 @@
               </svg>
               编辑信息
             </button>
-            <button v-if="isCreator" @click="uploadModal = true"
+            <button v-if="false" @click="uploadModal = true"
                     class="flex-1 sm:flex-none btn-primary flex items-center justify-center gap-1.5 px-5 py-2 text-xs font-bold">
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round"
@@ -198,10 +198,10 @@
                 <p v-else class="text-[11px] text-text-muted">点击相机图标更换头像</p>
               </div>
 
-              <!-- 昵称 -->
+              <!-- 用户名 -->
               <div>
                 <div class="flex items-center justify-between mb-1.5">
-                  <label class="text-xs text-text-muted">昵称</label>
+                  <label class="text-xs text-text-muted">用户名</label>
                   <span class="text-[10px]" :class="canChangeUsername ? 'text-text-muted' : 'text-amber-500/80'">
                     {{ canChangeUsername ? '每30天可修改一次' : `${daysUntilChange('username')} 天后可修改` }}
                   </span>
@@ -312,7 +312,7 @@ function daysUntilChange(key) {
 
 const menuItems = [
   {label: '观看记录', to: '/history', coming: true, icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z'},
-  {label: '我的收藏', to: '/favorites', coming: true, icon: 'M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z'},
+  {label: '我的收藏', to: '/favorites', coming: false, icon: 'M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z'},
   {label: '我的互动', to: '/interactions', coming: true, icon: 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z'},
 ]
 

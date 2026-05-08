@@ -3,6 +3,9 @@ import {createRouter, createWebHistory} from 'vue-router'
 const routes = [
     {path: '/', component: () => import('@/views/HomeView.vue')},
     {path: '/subscribe', component: () => import('@/views/SubscribeView.vue')},
+    {path: '/gossip', component: () => import('@/views/GossipView.vue')},
+    {path: '/gossip/:id', component: () => import('@/views/GossipDetailView.vue')},
+    {path: '/favorites', component: () => import('@/views/FavoritesView.vue')},
     {path: '/explore', component: () => import('@/views/ExploreView.vue')},
     {path: '/rankings', component: () => import('@/views/RankingsView.vue')},
     {path: '/profile', component: () => import('@/views/ProfileView.vue')},

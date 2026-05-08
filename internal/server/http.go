@@ -12,6 +12,7 @@ import (
 	commentHandler "adult-short-videos/internal/service/comment/handler"
 	favoriteHandler "adult-short-videos/internal/service/favorite/handler"
 	followHandler "adult-short-videos/internal/service/follow/handler"
+	gossipHandler "adult-short-videos/internal/service/gossip/handler"
 	playHandler "adult-short-videos/internal/service/play/handler"
 	searchHandler "adult-short-videos/internal/service/search/handler"
 	storageHandler "adult-short-videos/internal/service/storage/handler"
@@ -76,6 +77,7 @@ func buildRouter(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	searchHandler.RegisterRoutes(api, db)
 	commentHandler.RegisterRoutes(api, db, cfg.JWT.Secret)
 	followHandler.RegisterRoutes(api, db, cfg.JWT.Secret, cfg.Server.StaticAssetsBaseURL)
+	gossipHandler.RegisterRoutes(api, db)
 
 	return r
 }

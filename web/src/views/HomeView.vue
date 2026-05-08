@@ -11,33 +11,60 @@
     </div>
 
     <div class="max-w-screen-2xl mx-auto px-3 sm:px-4 py-4">
-      <!-- 广告位 -->
-      <div class="mb-4 rounded-xl border border-border/40 bg-bg-surface/60 h-14
-                  flex items-center justify-center text-text-muted text-xs tracking-widest">
-        AD · mitun69 广告位
-      </div>
 
-      <!-- 视频瀑布流（按顺序分发到各列：左→右→下一行） -->
-      <div class="flex gap-3 items-start">
-        <div v-for="(col, colIdx) in videoColumns" :key="`col-${colIdx}`" class="flex-1 space-y-3">
-          <div v-for="v in col" :key="v.video_id">
-            <VideoCard :video="v" :order-by="activeSort"/>
-          </div>
-        </div>
-
-        <template v-if="loading">
-          <div v-for="(col, colIdx) in skeletonColumns" :key="`sk-col-${colIdx}`" class="flex-1 space-y-3">
-            <div v-for="i in col" :key="`sk${colIdx}-${i}`"
-                 class="rounded-xl bg-bg-card border border-border animate-pulse">
-              <div class="aspect-video bg-bg-hover rounded-t-xl"></div>
-              <div class="p-2.5 space-y-1.5">
-                <div class="h-2.5 bg-bg-hover rounded w-full"></div>
-                <div class="h-2.5 bg-bg-hover rounded w-3/4"></div>
-                <div class="h-2 bg-bg-hover rounded w-1/2 mt-2"></div>
-              </div>
+      <!-- 首次加载骨架 -->
+      <div v-if="loading && !videos.length" class="flex gap-3 items-start">
+        <div v-for="(col, colIdx) in skeletonColumns" :key="`sk-col-${colIdx}`" class="flex-1 space-y-3">
+          <div v-for="i in col" :key="`sk${colIdx}-${i}`"
+               class="rounded-xl bg-bg-card border border-border animate-pulse">
+            <div class="aspect-video bg-bg-hover rounded-t-xl"></div>
+            <div class="p-2.5 space-y-1.5">
+              <div class="h-2.5 bg-bg-hover rounded w-full"></div>
+              <div class="h-2.5 bg-bg-hover rounded w-3/4"></div>
+              <div class="h-2 bg-bg-hover rounded w-1/2 mt-2"></div>
             </div>
           </div>
-        </template>
+        </div>
+      </div>
+
+      <!-- 视频 + 广告卡混合瀑布流（每 4 条视频插 1 个广告卡） -->
+      <div class="flex gap-3 items-start">
+        <div v-for="(col, colIdx) in videoColumns" :key="`col-${colIdx}`" class="flex-1 space-y-3">
+          <template v-for="item in col" :key="item._isAd ? item._adKey : item.video_id">
+
+            <!-- 广告卡：外观与 VideoCard 保持一致 -->
+            <div v-if="item._isAd"
+                 class="group block rounded-xl overflow-hidden bg-bg-card border border-border/60
+                        hover:border-primary/20 transition-all duration-300 cursor-pointer">
+              <!-- 封面区：渐变背景替代视频封面 -->
+              <div class="relative aspect-video overflow-hidden
+                          bg-gradient-to-br from-primary/25 via-purple-900/20 to-bg-card
+                          flex flex-col items-center justify-center gap-1.5">
+                <svg class="w-7 h-7 text-white/20" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
+                </svg>
+                <span class="text-white/30 text-[9px] tracking-widest uppercase">Advertisement</span>
+                <!-- 右下角广告标签 -->
+                <span class="absolute bottom-1.5 right-1.5 px-1.5 py-0.5 rounded
+                             bg-black/60 text-white/50 text-[9px]">广告</span>
+              </div>
+              <!-- 卡片信息区：模仿 VideoCard 布局 -->
+              <div class="p-2 space-y-1.5">
+                <p class="text-xs font-medium text-text-muted line-clamp-2 leading-snug">
+                  广告位招租 · 接入广告联盟
+                </p>
+                <div class="flex items-center gap-1.5">
+                  <img src="/logo.png" alt="ad" class="w-5 h-5 rounded-full shrink-0 object-cover"/>
+                  <span class="text-text-muted text-[10px] flex-1 truncate leading-none">mitun69</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 视频卡 -->
+            <VideoCard v-else :video="item" :order-by="activeSort"/>
+
+          </template>
+        </div>
       </div>
 
       <div ref="sentinel" class="h-6 mt-2"></div>
@@ -70,10 +97,23 @@ const page = ref(1)
 const activeSort = ref('created_at')
 const columnCount = ref(2)
 
+// 每 AD_EVERY 条真实视频后插入一个广告卡
+const AD_EVERY = 4
+const mixedList = computed(() => {
+  const result = []
+  videos.value.forEach((v, i) => {
+    result.push(v)
+    if ((i + 1) % AD_EVERY === 0) {
+      result.push({ _isAd: true, _adKey: `ad_${i}` })
+    }
+  })
+  return result
+})
+
 const videoColumns = computed(() => {
   const cols = Array.from({ length: columnCount.value }, () => [])
-  videos.value.forEach((video, idx) => {
-    cols[idx % columnCount.value].push(video)
+  mixedList.value.forEach((item, idx) => {
+    cols[idx % columnCount.value].push(item)
   })
   return cols
 })
@@ -81,9 +121,7 @@ const videoColumns = computed(() => {
 const skeletonColumns = computed(() => {
   const total = 10
   const cols = Array.from({ length: columnCount.value }, () => [])
-  for (let i = 0; i < total; i++) {
-    cols[i % columnCount.value].push(i)
-  }
+  for (let i = 0; i < total; i++) cols[i % columnCount.value].push(i)
   return cols
 })
 

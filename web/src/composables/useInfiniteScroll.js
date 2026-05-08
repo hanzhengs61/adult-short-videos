@@ -25,6 +25,10 @@ export function useInfiniteScroll(fetchFn) {
     function reset() {
         hasMore.value = true
         loading.value = false
+        // IntersectionObserver 只在交叉状态变化时触发；
+        // 若 sentinel 仍在视口内（如上一次请求失败、列表为空），切换排序后 observer 不会重新触发。
+        // 所以这里主动发起一次加载。
+        load()
     }
 
     onMounted(() => {

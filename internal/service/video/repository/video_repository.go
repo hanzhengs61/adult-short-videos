@@ -68,7 +68,7 @@ func (r *videoRepository) List(ctx context.Context, offset, limit int, filters m
 		case "play_count", "favorite_count":
 			orderCol = "v." + col
 		case "comment_count":
-			orderCol = "comment_count"
+			orderCol = "v.comment_count"
 		case "created_at":
 			orderCol = "v.created_at"
 		}

@@ -10,6 +10,24 @@
            class="relative w-full snap-start snap-always shrink-0"
            :style="{ height: screenH + 'px' }">
 
+        <!-- 广告 Slide -->
+        <template v-if="v._isAd">
+          <div class="w-full h-full bg-black flex items-center justify-center">
+            <div class="w-full max-w-xs px-6 text-center space-y-5">
+              <p class="text-white/30 text-[10px] tracking-widest uppercase">Advertisement</p>
+              <div class="rounded-2xl border border-white/10 bg-white/5 backdrop-blur py-10 px-6">
+                <p class="text-white font-bold text-xl mb-3">广告位</p>
+                <p class="text-white/40 text-sm">mitun69 · 招商合作</p>
+              </div>
+              <p class="text-white/25 text-xs">↑ 滑动继续 ↑</p>
+            </div>
+          </div>
+          <div class="absolute top-4 left-3 z-10 px-2 py-0.5 rounded bg-black/50 text-white/40 text-[10px]">广告</div>
+        </template>
+
+        <!-- 视频 Slide -->
+        <template v-else>
+
         <!-- 封面图（始终可见，视频就绪后被覆盖；object-contain 与视频保持一致比例） -->
         <img :src="v.cover_url || '/placeholder.svg'"
              class="absolute inset-0 w-full h-full object-contain pointer-events-none"/>
@@ -90,7 +108,7 @@
               <span v-if="!v.author_avatar">{{ v.author_name[0] }}</span>
             </div>
             <span class="text-white text-xs font-medium truncate drop-shadow max-w-[8rem]">{{ v.author_name }}</span>
-            <button v-if="userStore.isLoggedIn"
+            <button
                     :class="['shrink-0 text-xs px-2.5 py-0.5 rounded-full font-medium transition-all',
                              followedAuthors.has(v.author_name) ? 'bg-white/20 text-white/70' : 'bg-primary/90 text-white']"
                     @click.stop="toggleFollow(v.author_name)">
@@ -168,6 +186,7 @@
             </div>
           </div>
         </div>
+        </template>
       </div>
 
       <!-- 底部加载指示 -->
@@ -415,6 +434,13 @@ function initVideo(idx) {
 }
 
 function playAt(idx) {
+  // 广告 slide：停止所有视频，不尝试播放任何东西
+  if (videos.value[idx]?._isAd) {
+    stopAll()
+    pausedIdx.value = -1
+    currentPlayingIdx.value = -1
+    return
+  }
   const el = videoRefs[idx]
   if (!el) return
 
@@ -567,10 +593,25 @@ async function fetchMore() {
     const pageSize = 20
     const res = await videoApi.list({page: page.value, page_size: pageSize, order_by: orderBy})
     const rawList = res.data?.videos || []
+    // 过滤时跳过广告项，防止广告 ID 干扰去重逻辑
     const list = rawList
-        .filter(v => !videos.value.some(e => e.video_id === v.video_id))
+        .filter(v => !videos.value.some(e => !e._isAd && e.video_id === v.video_id))
         .map(v => ({...v, _favorited: false}))
-    videos.value.push(...list)
+
+    // 每 AD_EVERY 条真实视频后插入一个广告 slide
+    // 用 (globalRealIdx + 1) 使第一个广告出现在第 AD_EVERY 条视频之后（第 AD_EVERY+1 个位置）
+    const AD_EVERY = 4
+    const realCount = videos.value.filter(v => !v._isAd).length
+    const withAds = []
+    list.forEach((v, i) => {
+      withAds.push(v)
+      const globalRealIdx = realCount + i + 1  // 1-based：第几条真实视频
+      if (globalRealIdx % AD_EVERY === 0) {
+        withAds.push({ _isAd: true, video_id: `_ad_${globalRealIdx}` })
+      }
+    })
+
+    videos.value.push(...withAds)
     page.value++
     // 注意：这里用 rawList 判断是否到底，而不是用 filter 后长度。
     // 否则当目标视频重复被过滤时，会误判”已到底”，导致无法继续滑动。
@@ -668,8 +709,21 @@ onMounted(async () => {
       return
     }
 
-    await checkFavorites(videos.value)
-    await checkFollowStatus(videos.value.map(v => v.author_name))
+    // 向收集的视频插入广告，再重新查找 foundIdx（广告插入后各视频的 idx 会偏移）
+    const AD_EVERY = 4
+    const withAds = []
+    videos.value.forEach((v, i) => {
+      withAds.push(v)
+      if ((i + 1) % AD_EVERY === 0) {
+        withAds.push({ _isAd: true, video_id: `_ad_${i + 1}` })
+      }
+    })
+    videos.value = withAds
+    foundIdx = videos.value.findIndex(v => String(v.video_id) === startIdRaw)
+
+    const realVideos = videos.value.filter(v => !v._isAd)
+    await checkFavorites(realVideos)
+    await checkFollowStatus(realVideos.map(v => v.author_name))
     await nextTick()
     if (container.value) container.value.scrollTop = foundIdx * screenH.value
     // 等浏览器真正落实滚动，避免 IntersectionObserver 用旧 scrollTop=0
