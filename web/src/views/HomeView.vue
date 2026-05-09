@@ -148,8 +148,12 @@ const { sentinel, loading, hasMore, reset } = useInfiniteScroll(fetchMore)
 
 function setSort(v) {
   if (activeSort.value === v) return
+  sessionStorage.removeItem(HOME_FEED_RETURN_KEY)
+  sessionStorage.removeItem(HOME_FEED_RETURN_PENDING_KEY)
+  scrollWithoutSmooth(0)
   activeSort.value = v
   videos.value = []; page.value = 1; reset()
+  nextTick(() => scrollWithoutSmooth(0))
 }
 
 function scrollWithoutSmooth(top) {
