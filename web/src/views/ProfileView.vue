@@ -3,13 +3,13 @@
     <div v-if="!userStore.isLoggedIn"
          class="flex flex-col items-center justify-center py-28 gap-5 animate-fade-in">
       <div class="w-24 h-24 rounded-full bg-bg-surface border-2 border-border flex items-center justify-center">
-        <svg class="w-12 h-12 text-text-muted" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+        <svg class="w-12 h-12 text-text-primary/60" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
         </svg>
       </div>
       <div class="text-center">
-        <p class="text-text-primary font-bold text-xl mb-1">登录 mitun69</p>
-        <p class="text-text-muted text-sm">管理你的内容，查看播放数据</p>
+        <p class="text-text-primary font-bold text-2xl mb-1">登录 mitun69</p>
+        <p class="text-text-primary/60 text-base">管理你的内容，查看播放数据</p>
       </div>
       <button @click="userStore.openAuth('login')" class="btn-primary px-10 py-3 text-sm font-bold">立即登录</button>
       <button @click="userStore.openAuth('register')" class="text-xs text-text-muted hover:text-primary transition-colors">没有账号？免费注册</button>
@@ -26,31 +26,31 @@
             </div>
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2 flex-wrap">
-                <h1 class="text-lg font-black text-text-primary">{{ userStore.userInfo?.username }}</h1>
+                <h1 class="text-2xl font-black text-text-primary">{{ userStore.userInfo?.username }}</h1>
                 <span :class="['px-2 py-0.5 rounded-full text-[10px] font-semibold border',
                   isCreator
                     ? 'bg-primary/10 border-primary/30 text-primary'
-                    : 'bg-bg-hover border-border text-text-muted']">
+                    : 'bg-bg-hover border-border text-text-primary/60']">
                   {{ isCreator ? '创作者' : '普通用户' }}
                 </span>
               </div>
-              <p class="text-text-muted text-xs mt-1 line-clamp-2">
+              <p class="text-text-primary/60 text-sm mt-1 line-clamp-2">
                 {{ userStore.userInfo?.bio || '这个人很懒，什么都没写...' }}
               </p>
               <div v-if="isCreator" class="flex items-center gap-4 mt-3">
                 <div class="text-center">
-                  <p class="text-base font-black text-text-primary">{{ stats.videoCount }}</p>
-                  <p class="text-[10px] text-text-muted">视频</p>
+                  <p class="text-lg font-black text-text-primary">{{ stats.videoCount }}</p>
+                  <p class="text-xs text-text-primary/60">视频</p>
                 </div>
                 <div class="w-px h-8 bg-border"></div>
                 <div class="text-center">
-                  <p class="text-base font-black text-text-primary">{{ formatCount(stats.totalPlays) }}</p>
-                  <p class="text-[10px] text-text-muted">累计播放</p>
+                  <p class="text-lg font-black text-text-primary">{{ formatCount(stats.totalPlays) }}</p>
+                  <p class="text-xs text-text-primary/60">累计播放</p>
                 </div>
                 <div class="w-px h-8 bg-border"></div>
                 <div class="text-center">
-                  <p class="text-base font-black text-text-primary">{{ stats.followers }}</p>
-                  <p class="text-[10px] text-text-muted">粉丝</p>
+                  <p class="text-lg font-black text-text-primary">{{ stats.followers }}</p>
+                  <p class="text-xs text-text-primary/60">粉丝</p>
                 </div>
               </div>
             </div>
@@ -58,7 +58,7 @@
           <div class="flex gap-2 mt-4">
             <button @click="openEdit"
                     class="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg
-                     border border-border text-text-secondary text-xs font-medium
+                     border border-border text-text-primary/60 text-sm font-medium
                      hover:border-border-light hover:text-text-primary transition-all">
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round"
@@ -96,13 +96,13 @@
                 <path stroke-linecap="round" stroke-linejoin="round" :d="item.icon"/>
               </svg>
             </div>
-            <span class="text-sm text-text-primary font-medium">{{ item.label }}</span>
+            <span class="text-base text-text-primary font-medium">{{ item.label }}</span>
           </div>
           <span v-if="item.coming"
-                class="text-[10px] px-2 py-0.5 rounded-full bg-bg-hover border border-border text-text-muted">
+                class="text-[10px] px-2 py-0.5 rounded-full bg-bg-hover border border-border text-text-primary/60">
             即将上线
           </span>
-          <svg v-else class="w-4 h-4 text-text-muted group-hover:text-primary transition-colors"
+          <svg v-else class="w-4 h-4 text-text-primary/60 group-hover:text-primary transition-colors"
                fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
           </svg>
@@ -119,7 +119,7 @@
                     d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
             </svg>
           </div>
-          <span class="text-sm font-medium">退出登录</span>
+          <span class="text-base font-medium">退出登录</span>
         </button>
       </div>
 
@@ -127,10 +127,10 @@
       <div v-else class="max-w-screen-xl mx-auto px-3 sm:px-4">
         <div class="flex border-b border-border mb-4 overflow-x-auto scrollbar-none">
           <button v-for="tab in creatorTabs" :key="tab.value" @click="activeTab = tab.value"
-                  :class="['flex items-center gap-1.5 px-4 py-3 text-sm font-semibold relative shrink-0 transition-colors',
-              activeTab === tab.value ? 'text-text-primary' : 'text-text-muted hover:text-text-secondary']">
+                  :class="['flex items-center gap-1.5 px-4 py-3 text-base font-semibold relative shrink-0 transition-colors',
+              activeTab === tab.value ? 'text-text-primary' : 'text-text-primary/60 hover:text-text-primary']">
             {{ tab.label }}
-            <span class="px-1.5 py-0.5 rounded-full bg-bg-hover text-[10px] text-text-muted">{{ tab.count }}</span>
+            <span class="px-1.5 py-0.5 rounded-full bg-bg-hover text-[10px] text-text-primary/60">{{ tab.count }}</span>
             <span v-if="activeTab === tab.value"
                   class="absolute bottom-0 left-4 right-4 h-0.5 bg-gradient-primary rounded-full"></span>
           </button>
@@ -195,14 +195,14 @@
                 <p v-if="!canChangeAvatar" class="text-[11px] text-amber-500/80">
                   头像 {{ daysUntilChange('avatar') }} 天后可再次修改
                 </p>
-                <p v-else class="text-[11px] text-text-muted">点击相机图标更换头像</p>
+                <p v-else class="text-[11px] text-text-primary/60">点击相机图标更换头像</p>
               </div>
 
               <!-- 用户名 -->
               <div>
                 <div class="flex items-center justify-between mb-1.5">
-                  <label class="text-xs text-text-muted">用户名</label>
-                  <span class="text-[10px]" :class="canChangeUsername ? 'text-text-muted' : 'text-amber-500/80'">
+                  <label class="text-xs text-text-primary/60">用户名</label>
+                  <span class="text-[10px]" :class="canChangeUsername ? 'text-text-primary/60' : 'text-amber-500/80'">
                     {{ canChangeUsername ? '每30天可修改一次' : `${daysUntilChange('username')} 天后可修改` }}
                   </span>
                 </div>
@@ -213,7 +213,7 @@
 
               <!-- 个人简介 -->
               <div>
-                <label class="block text-xs text-text-muted mb-1.5">个人简介</label>
+                <label class="block text-xs text-text-primary/60 mb-1.5">个人简介</label>
                 <textarea v-model="editForm.bio" class="input-base resize-none" rows="3"
                           placeholder="介绍一下自己..."></textarea>
               </div>
@@ -251,21 +251,21 @@
                   <path stroke-linecap="round" stroke-linejoin="round"
                         d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
                 </svg>
-                <p class="text-text-secondary text-sm font-medium">
+                <p class="text-text-primary/60 text-sm font-medium">
                   {{ selectedFile ? selectedFile.name : '点击或拖拽上传视频' }}
                 </p>
-                <p class="text-text-muted text-xs mt-1">支持 MP4、AVI、MOV，最大 2GB</p>
+                <p class="text-text-primary/60 text-xs mt-1">支持 MP4、AVI、MOV，最大 2GB</p>
               </div>
               <div>
-                <label class="block text-xs text-text-muted mb-1.5">视频标题 *</label>
+                <label class="block text-xs text-text-primary/60 mb-1.5">视频标题 *</label>
                 <input v-model="uploadForm.title" class="input-base text-sm" placeholder="请输入标题"/>
               </div>
               <div>
-                <label class="block text-xs text-text-muted mb-1.5">标签（逗号分隔）</label>
+                <label class="block text-xs text-text-primary/60 mb-1.5">标签（逗号分隔）</label>
                 <input v-model="uploadForm.tags" class="input-base text-sm" placeholder="如：丝袜,巨乳,御姐"/>
               </div>
               <button @click="submitUpload" class="btn-primary w-full py-3 text-sm font-bold">提交审核</button>
-              <p class="text-center text-xs text-text-muted">提交后将在 24 小时内完成审核</p>
+              <p class="text-center text-xs text-text-primary/60">提交后将在 24 小时内完成审核</p>
             </div>
           </div>
         </div>

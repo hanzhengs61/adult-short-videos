@@ -5,8 +5,8 @@
     <div class="flex flex-col gap-2 mb-6">
       <div class="flex bg-bg-surface border border-border rounded-xl p-1 gap-1">
         <button v-for="t in types" :key="t.value" @click="activeType = t.value"
-                :class="['px-4 py-1.5 rounded-lg text-xs font-semibold transition-all',
-            activeType===t.value ? 'bg-gradient-primary text-white' : 'text-text-muted hover:text-text-primary']">
+                :class="['px-4 py-1.5 rounded-lg text-sm font-semibold transition-all',
+            activeType===t.value ? 'bg-gradient-primary text-white' : 'text-text-primary/60 hover:text-text-primary']">
           {{ t.label }}
         </button>
       </div>
@@ -14,15 +14,15 @@
       <!-- 视频榜才显示时间筛选 -->
       <div v-if="activeType !== 'creator'" class="flex gap-1.5">
         <button v-for="p in periods" :key="p.value" @click="activePeriod = p.value"
-                :class="['px-3.5 py-1.5 rounded-full text-xs border font-medium transition-all',
+                :class="['px-3.5 py-1.5 rounded-full text-sm border font-medium transition-all',
             activePeriod===p.value
               ? 'border-primary/60 text-primary bg-primary/10'
-              : 'border-border text-text-muted hover:border-border-light hover:text-text-primary']">
+              : 'border-border text-text-primary/60 hover:border-border-light hover:text-text-primary']">
           {{ p.label }}
         </button>
       </div>
 
-      <div class="ml-auto hidden sm:flex items-center gap-1.5 text-xs text-text-muted">
+      <div class="ml-auto hidden sm:flex items-center gap-1.5 text-xs text-text-primary/60">
         <svg class="w-3.5 h-3.5 text-primary" fill="currentColor" viewBox="0 0 24 24">
           <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
         </svg>
@@ -50,10 +50,10 @@
                class="w-10 h-10 rounded-full shrink-0 object-cover"/>
           <!-- 信息 -->
           <div class="flex-1 min-w-0">
-            <p class="text-sm font-semibold text-text-primary group-hover:text-primary transition-colors truncate">
+            <p class="text-base font-semibold text-text-primary group-hover:text-primary transition-colors truncate">
               {{ c.username }}
             </p>
-            <div class="flex items-center gap-3 mt-0.5 text-xs text-text-muted">
+            <div class="flex items-center gap-3 mt-0.5 text-sm text-text-primary/60">
               <span>{{ c.video_count }} 个视频</span>
               <span>{{ formatCount(c.total_plays) }} 播放</span>
             </div>
@@ -92,8 +92,8 @@
             </div>
           </div>
           <div class="p-2.5">
-            <p class="text-xs font-medium text-text-primary line-clamp-2 leading-snug mb-1">{{ v.title }}</p>
-            <div class="flex items-center justify-between text-[11px] text-text-muted">
+            <p class="text-sm font-medium text-text-primary line-clamp-2 leading-snug mb-1">{{ v.title }}</p>
+            <div class="flex items-center justify-between text-xs text-text-primary/60">
               <span>{{ formatCount(v.play_count) }} 播放</span>
               <span v-if="i===0" class="text-yellow-500 font-bold text-[10px]">🥇 冠军</span>
               <span v-else-if="i===1" class="text-gray-400 font-bold text-[10px]">🥈 亚军</span>
@@ -120,10 +120,10 @@
             </span>
           </div>
           <div class="flex-1 min-w-0">
-            <p class="text-sm text-text-primary line-clamp-2 leading-snug group-hover:text-primary transition-colors">
+            <p class="text-base text-text-primary line-clamp-2 leading-snug group-hover:text-primary transition-colors">
               {{ v.title }}
             </p>
-            <div class="flex items-center gap-3 mt-1.5 text-xs text-text-muted flex-wrap">
+            <div class="flex items-center gap-3 mt-1.5 text-sm text-text-primary/60 flex-wrap">
               <span class="flex items-center gap-1">
                 <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5C21.27 7.61 17 4.5 12 4.5z"/>

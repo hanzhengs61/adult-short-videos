@@ -5,7 +5,7 @@
       <button v-for="item in navItems" :key="item.to"
               @click="handleNav(item)"
               :class="['flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 transition-all relative',
-          isActive(item) ? 'text-primary' : 'text-text-muted']">
+          isActive(item) ? 'text-primary' : 'text-text-primary/60']">
 
         <!-- 活跃背景光晕 -->
         <span v-if="isActive(item)"
@@ -27,8 +27,8 @@
           </span>
         </span>
 
-        <span :class="['text-[10px] font-semibold leading-none transition-colors',
-          isActive(item) ? 'text-primary' : 'text-text-muted']">
+        <span :class="['text-base font-semibold leading-none transition-colors',
+          isActive(item) ? 'text-primary' : 'text-text-primary/60']">
           {{ item.label }}
         </span>
       </button>

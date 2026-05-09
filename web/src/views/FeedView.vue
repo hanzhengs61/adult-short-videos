@@ -15,15 +15,15 @@
         <template v-if="v._isAd">
           <div class="w-full h-full bg-black flex items-center justify-center">
             <div class="w-full max-w-xs px-6 text-center space-y-5">
-              <p class="text-white/30 text-[10px] tracking-widest uppercase">Advertisement</p>
+              <p class="text-white/30 text-xs tracking-widest uppercase">Advertisement</p>
               <div class="rounded-2xl border border-white/10 bg-white/5 backdrop-blur py-10 px-6">
-                <p class="text-white font-bold text-xl mb-3">广告位</p>
-                <p class="text-white/40 text-sm">mitun69 · 招商合作</p>
+                <p class="text-white font-bold text-2xl mb-3">广告位</p>
+                <p class="text-white/40 text-base">mitun69 · 招商合作</p>
               </div>
-              <p class="text-white/25 text-xs">↑ 滑动继续 ↑</p>
+              <p class="text-white/25 text-sm">↑ 滑动继续 ↑</p>
             </div>
           </div>
-          <div class="absolute top-4 left-3 z-10 px-2 py-0.5 rounded bg-black/50 text-white/40 text-[10px]">广告</div>
+          <div class="absolute top-4 left-3 z-10 px-2 py-0.5 rounded bg-black/50 text-white/40 text-xs">广告</div>
         </template>
 
         <!-- 视频 Slide -->
@@ -112,22 +112,22 @@
           <!-- 作者名（@格式，点击打开用户抽屉） -->
           <div v-if="v.author_name" class="mb-1">
             <button @click.stop="openAuthorDrawer(v)"
-                    class="text-white text-base font-bold drop-shadow active:opacity-70 transition-opacity">
+                    class="text-white text-lg font-bold drop-shadow active:opacity-70 transition-opacity">
               @{{ v.author_name }}
             </button>
           </div>
           <!-- 文案（3 行省略，不展开） -->
-          <p class="text-white text-[13px] leading-snug drop-shadow line-clamp-3 mb-2">{{ v.title }}</p>
+          <p class="text-white text-sm leading-snug drop-shadow line-clamp-3 mb-2">{{ v.title }}</p>
           <!-- 标签行，点击跳转搜索 -->
           <div v-if="getTags(v).length" class="flex flex-wrap gap-1.5 mb-1.5">
             <button v-for="tag in getTags(v)" :key="tag"
                     @click.stop="goTag(tag)"
-                    class="text-white text-[11px] font-medium active:opacity-60 transition-opacity">
+                    class="text-white text-[13px] font-medium active:opacity-60 transition-opacity">
               #{{ tag.replace(/^#/, '') }}
             </button>
           </div>
-          <div class="flex items-center gap-1 text-white/45 text-[10px]">
-            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+          <div class="flex items-center gap-1 text-white/45 text-xs">
+            <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
               <path d="M8 5v14l11-7z"/>
             </svg>
             {{ fmtN(v.play_count) }} 次播放
@@ -154,20 +154,17 @@
                 <path d="M8 5v14l11-7z"/>
               </svg>
             </button>
-            <div class="text-xs tabular-nums text-white/90 shrink-0">
+            <div class="text-sm tabular-nums text-white/90 shrink-0">
               {{ fmtTime(videoTimes[idx]?.current) }} / {{ fmtTime(videoTimes[idx]?.duration || v.duration) }}
             </div>
             <div class="flex-1"></div>
-            <div class="flex items-center gap-2 overflow-x-auto" style="scrollbar-width:none">
-              <button :class="['control-toggle', continuousPlay ? 'is-on' : '']" @click="toggleContinuousPlay">
-                <span class="toggle-dot"></span>
-                <span>连播</span>
+            <div class="flex items-center gap-1">
+              <button class="control-icon-btn" @click.stop="showSettings = !showSettings" aria-label="设置">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                </svg>
               </button>
-              <button :class="['control-toggle', cleanMode ? 'is-on' : '']" @click="cleanMode = !cleanMode">
-                <span class="toggle-dot"></span>
-                <span>清屏</span>
-              </button>
-              <button class="control-text-btn" @click.stop="showSpeedMenu = !showSpeedMenu">{{ playbackRateLabel }}</button>
               <button class="control-icon-btn" @click="toggleMuted" :aria-label="muted ? '打开声音' : '静音'">
                 <svg v-if="muted" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M16 9l5 5m0-5l-5 5M5 9v6h4l5 4V5L9 9H5z"/>
@@ -210,22 +207,44 @@
       </button>
     </div>
 
-    <!-- 倍速选择遮罩 -->
-    <div v-if="showSpeedMenu" class="absolute inset-0 z-[29]" @click="showSpeedMenu = false"/>
-    <!-- 倍速选择列表 -->
+    <!-- 设置面板遮罩 -->
+    <div v-if="showSettings" class="absolute inset-0 z-[29]" @click="showSettings = false"/>
+    <!-- 设置面板 -->
     <transition name="fade-icon">
-      <div v-if="showSpeedMenu"
-           class="absolute bottom-14 right-3 z-30 bg-black/90 backdrop-blur rounded-xl overflow-hidden shadow-xl"
+      <div v-if="showSettings"
+           class="absolute bottom-14 right-3 z-30 bg-black/90 backdrop-blur rounded-xl shadow-xl overflow-hidden"
+           style="min-width:190px"
            @click.stop>
-        <button v-for="opt in speedOptions" :key="opt.value"
-                :class="['flex items-center justify-between w-full px-5 py-3 text-sm whitespace-nowrap',
-                         playbackRate === opt.value ? 'text-pink-400 font-semibold' : 'text-white/85']"
-                @click="setSpeed(opt.value)">
-          <span>{{ opt.label }}</span>
-          <svg v-if="playbackRate === opt.value" class="w-4 h-4 ml-3 shrink-0" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/>
-          </svg>
-        </button>
+        <!-- 连播 -->
+        <div class="flex items-center justify-between px-4 py-3 border-b border-white/10">
+          <span class="text-white/90 text-base">连播</span>
+          <button @click="toggleContinuousPlay"
+                  :class="['relative w-10 h-6 rounded-full transition-colors shrink-0', continuousPlay ? 'bg-pink-500' : 'bg-gray-600']">
+            <span class="absolute left-0 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform"
+                  :style="{ transform: continuousPlay ? 'translateX(18px)' : 'translateX(2px)' }"/>
+          </button>
+        </div>
+        <!-- 清屏 -->
+        <div class="flex items-center justify-between px-4 py-3 border-b border-white/10">
+          <span class="text-white/90 text-base">清屏</span>
+          <button @click="cleanMode = !cleanMode"
+                  :class="['relative w-10 h-6 rounded-full transition-colors shrink-0', cleanMode ? 'bg-pink-500' : 'bg-gray-600']">
+            <span class="absolute left-0 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform"
+                  :style="{ transform: cleanMode ? 'translateX(18px)' : 'translateX(2px)' }"/>
+          </button>
+        </div>
+        <!-- 倍速 -->
+        <div class="px-4 py-3">
+          <p class="text-white/55 text-xs font-medium tracking-wide mb-2.5">倍速</p>
+          <div class="flex gap-1.5 flex-wrap">
+            <button v-for="opt in speedOptions" :key="opt.value"
+                    @click="setSpeed(opt.value)"
+                    :class="['px-3 py-1 rounded-lg text-sm font-medium',
+                             playbackRate === opt.value ? 'bg-pink-500 text-white' : 'bg-white/10 text-white/85']">
+              {{ opt.value === 1 ? '正常' : opt.value + 'x' }}
+            </button>
+          </div>
+        </div>
       </div>
     </transition>
 
@@ -236,8 +255,8 @@
            @click.self="commentVideo = null">
         <div class="bg-bg-surface rounded-t-2xl border-t border-border max-h-[70vh] flex flex-col">
           <div class="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
-            <span class="text-sm font-semibold text-text-primary">评论</span>
-            <button @click="commentVideo = null" class="text-sm font-semibold text-text-primary">
+            <span class="text-base font-semibold text-text-primary">评论</span>
+            <button @click="commentVideo = null" class="text-base font-semibold text-text-primary">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
               </svg>
@@ -271,13 +290,13 @@
               <span v-if="!authorDrawer.avatar">{{ authorDrawer.name?.[0] }}</span>
             </div>
             <div class="flex-1 min-w-0">
-              <p class="text-text-primary font-bold text-base truncate">@{{ authorDrawer.name }}</p>
-              <p class="text-text-muted text-xs mt-0.5">{{ authorDrawer.videoCount != null ? authorDrawer.videoCount + ' 个视频' : '' }}</p>
+              <p class="text-text-primary font-bold text-lg truncate">@{{ authorDrawer.name }}</p>
+              <p class="text-text-muted text-sm mt-0.5">{{ authorDrawer.videoCount != null ? authorDrawer.videoCount + ' 个视频' : '' }}</p>
             </div>
             <!-- 非本人才显示关注按钮 -->
             <button v-if="authorDrawer.name !== userStore.userInfo?.username"
                     @click="toggleFollow(authorDrawer.name)"
-                    :class="['px-5 py-2 rounded-full font-semibold text-sm transition-all active:scale-95 shrink-0',
+                    :class="['px-5 py-2 rounded-full font-semibold text-base transition-all active:scale-95 shrink-0',
                              followedAuthors.has(authorDrawer.name)
                                ? 'bg-white/10 text-text-secondary border border-white/15'
                                : 'bg-primary text-white']">
@@ -316,7 +335,7 @@
             <div class="w-9 h-1 rounded-full bg-white/20"></div>
           </div>
           <div class="flex items-center justify-between px-4 py-2 border-b border-border/50">
-            <span class="text-sm font-semibold text-text-primary">分享给</span>
+            <span class="text-base font-semibold text-text-primary">分享给</span>
             <button @click="shareVideo = null">
               <svg class="w-5 h-5 text-text-secondary" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
@@ -332,7 +351,7 @@
                   <path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
                 </svg>
               </div>
-              <span class="text-text-secondary text-[11px]">复制链接</span>
+              <span class="text-text-secondary text-[13px]">复制链接</span>
             </button>
             <!-- 系统分享（仅支持 Web Share API 的设备显示） -->
             <button v-if="canNativeShare" @click="doShareNative" class="flex flex-col items-center gap-2">
@@ -341,7 +360,7 @@
                   <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
                 </svg>
               </div>
-              <span class="text-text-secondary text-[11px]">系统分享</span>
+              <span class="text-text-secondary text-[13px]">系统分享</span>
             </button>
             <!-- 微信（触发系统分享，移动端自动列出微信） -->
             <button @click="doShareNative" class="flex flex-col items-center gap-2">
@@ -350,7 +369,7 @@
                   <path d="M8.691 2.188C3.891 2.188 0 5.476 0 9.53c0 2.212 1.17 4.203 3.002 5.55a.59.59 0 01.213.665l-.39 1.48c-.019.07-.048.141-.048.213 0 .163.13.295.29.295a.326.326 0 00.167-.054l1.903-1.114a.864.864 0 01.717-.098 10.16 10.16 0 002.837.403c.276 0 .543-.027.811-.05-.857-2.578.157-4.972 1.932-6.446 1.703-1.415 3.882-1.98 5.853-1.838-.576-3.583-4.196-6.348-8.596-6.348zM5.785 5.991c.642 0 1.162.529 1.162 1.182a1.17 1.17 0 01-1.162 1.18A1.17 1.17 0 014.623 7.17c0-.653.52-1.18 1.162-1.18zm5.813 0c.642 0 1.162.529 1.162 1.182a1.17 1.17 0 01-1.162 1.18 1.17 1.17 0 01-1.162-1.18c0-.653.52-1.18 1.162-1.18zm5.34 2.867c-1.797-.052-3.746.512-5.28 1.786-1.72 1.428-2.687 3.72-1.78 6.22.942 2.453 3.666 4.229 6.884 4.229.826 0 1.622-.12 2.361-.336a.722.722 0 01.598.082l1.584.926a.272.272 0 00.14.047c.134 0 .24-.111.24-.247 0-.06-.023-.12-.038-.177l-.327-1.233a.49.49 0 01.177-.554C22.924 18.48 24 16.82 24 14.98c0-3.21-2.931-5.837-7.062-6.122zm-3.318 2.333c.535 0 .969.44.969.982a.976.976 0 01-.969.983.976.976 0 01-.969-.983c0-.542.434-.982.969-.982zm6.748 0c.535 0 .969.44.969.982a.976.976 0 01-.969.983.976.976 0 01-.969-.983c0-.542.434-.982.969-.982z"/>
                 </svg>
               </div>
-              <span class="text-text-secondary text-[11px]">微信</span>
+              <span class="text-text-secondary text-[13px]">微信</span>
             </button>
             <!-- 微博 -->
             <button @click="doShareWeibo" class="flex flex-col items-center gap-2">
@@ -359,7 +378,7 @@
                   <path d="M10.098 20.323c-3.977.391-7.414-1.406-7.672-4.02-.259-2.609 2.759-5.047 6.74-5.441 3.979-.394 7.413 1.404 7.671 4.018.259 2.6-2.759 5.049-6.74 5.443zm5.833-11.09c-.545-.165-1.01-.276-1.326-.346.105-.35.183-.704.183-1.021 0-2.209-2.502-4.001-5.59-4.001S3.609 5.657 3.609 7.866c0 2.208 2.502 4.001 5.59 4.001.326 0 .661-.023.989-.068.081.357.259.672.535.915-1.138.044-2.221-.074-3.158-.326-1.108-.302-2.151-.867-3.007-1.666a.596.596 0 00-.849.016.616.616 0 00.016.861c1.001.944 2.209 1.597 3.479 1.952.975.266 2.012.404 3.066.404 1.048 0 2.075-.136 3.039-.395 1.271-.346 2.479-.992 3.484-1.924a.616.616 0 00.021-.867.596.596 0 00-.849-.011c-.521.49-1.106.901-1.734 1.23.235-.493.363-1.037.363-1.609 0-.146-.01-.289-.03-.431.38.088.748.195 1.045.281zm2.465-3.07c-.488-1.391-1.908-2.293-3.469-2.19l-.006-.016c-.184.015-.34.13-.415.301-.076.169-.048.365.075.507.123.143.316.203.499.155l.006.017c.957-.063 1.857.508 2.178 1.404.32.896-.024 1.881-.832 2.378l.006.016c-.163.083-.258.256-.244.44.014.184.135.342.309.403.175.061.368.012.494-.123l-.006-.016c1.212-.733 1.729-2.189 1.405-3.276zm2.364-1.036c-.978-2.788-3.82-4.598-6.945-4.388l-.01-.029c-.185.014-.342.128-.418.3-.076.171-.049.368.075.511.124.143.317.204.5.156l.01.029c2.596-.172 5.035 1.353 5.84 3.691.806 2.337-.127 4.847-2.198 6.079l.01.029c-.163.084-.258.257-.244.441.014.185.136.343.31.404.174.061.367.012.494-.123l-.009-.028c2.553-1.518 3.621-4.573 2.585-7.072z"/>
                 </svg>
               </div>
-              <span class="text-text-secondary text-[11px]">微博</span>
+              <span class="text-text-secondary text-[13px]">微博</span>
             </button>
           </div>
           <!-- 复制成功提示 -->
@@ -376,7 +395,7 @@
 </template>
 
 <script setup>
-import {computed, nextTick, onMounted, onUnmounted, reactive, ref, watch} from 'vue'
+import {nextTick, onMounted, onUnmounted, reactive, ref, watch} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import Hls from 'hls.js'
 import { videoApi, favoriteApi, playApi, followApi } from '@/api'
@@ -421,7 +440,7 @@ const speedOptions = [
   { value: 2,    label: '2x 极速' },
 ]
 const playbackRate = ref(1)
-const showSpeedMenu = ref(false)
+const showSettings = ref(false)
 const playStates = reactive({})
 const followedAuthors = reactive(new Set())
 const checkedLikeIds = new Set()
@@ -463,7 +482,6 @@ async function toggleFollow(author) {
     }
   } catch {}
 }
-const playbackRateLabel = computed(() => playbackRate.value === 1 ? '倍速' : playbackRate.value + 'x')
 
 const orderByAllowed = ['created_at', 'play_count', 'comment_count', 'favorite_count']
 const orderByRaw = route.query.order_by == null ? '' : String(route.query.order_by)
@@ -780,7 +798,7 @@ function toggleMuted() {
 function setSpeed(value) {
   playbackRate.value = value
   videoRefs.forEach(applyVideoSettings)
-  showSpeedMenu.value = false
+  showSettings.value = false
 }
 
 function syncFullscreenState() {
@@ -1204,10 +1222,10 @@ function doShareWeibo() {
 .feed-action-count {
   color: #fff;
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.7));
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
-  line-height: 13px;
-  min-height: 13px;
+  line-height: 16px;
+  min-height: 16px;
   max-width: 54px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1236,7 +1254,7 @@ function doShareWeibo() {
   border-radius: 6px;
   color: rgba(255, 255, 255, 0.92);
   display: inline-flex;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
   height: 32px;
   justify-content: center;
@@ -1256,7 +1274,7 @@ function doShareWeibo() {
   border-radius: 6px;
   color: rgba(255, 255, 255, 0.86);
   display: inline-flex;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
   gap: 5px;
   height: 32px;

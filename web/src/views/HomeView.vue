@@ -49,13 +49,13 @@
                              bg-black/60 text-white/50 text-[9px]">广告</span>
               </div>
               <!-- 卡片信息区：模仿 VideoCard 布局 -->
-              <div class="p-2 space-y-1.5">
-                <p class="text-xs font-medium text-text-muted line-clamp-2 leading-snug">
+              <div class="p-2.5 space-y-2">
+                <p class="text-sm font-medium text-text-primary line-clamp-2 leading-snug">
                   广告位招租 · 接入广告联盟
                 </p>
-                <div class="flex items-center gap-1.5">
-                  <img src="/logo.png" alt="ad" class="w-5 h-5 rounded-full shrink-0 object-cover"/>
-                  <span class="text-text-muted text-[10px] flex-1 truncate leading-none">mitun69</span>
+                <div class="flex items-center gap-2">
+                  <img src="/logo.png" alt="ad" class="w-6 h-6 rounded-full shrink-0 object-cover"/>
+                  <span class="text-text-primary/60 text-xs flex-1 truncate leading-none">mitun69</span>
                 </div>
               </div>
             </div>

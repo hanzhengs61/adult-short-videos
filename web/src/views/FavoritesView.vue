@@ -30,13 +30,13 @@
       <!-- 未登录提示 -->
       <div v-if="!loading && !videos.length && !userStore.isLoggedIn"
            class="flex flex-col items-center py-24 gap-4 text-center">
-        <svg class="w-16 h-16 text-text-muted opacity-30" fill="none" stroke="currentColor" stroke-width="1.2" viewBox="0 0 24 24">
+        <svg class="w-16 h-16 text-text-primary/60 opacity-30" fill="none" stroke="currentColor" stroke-width="1.2" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round"
                 d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
         </svg>
-        <p class="text-text-primary font-medium">登录后查看喜欢</p>
+        <p class="text-text-primary font-medium text-lg">登录后查看喜欢</p>
         <button @click="userStore.openAuth('login')"
-                class="px-5 py-2 rounded-full bg-primary text-white text-sm hover:bg-primary/80 transition-colors">
+                class="px-5 py-2 rounded-full bg-primary text-white text-base hover:bg-primary/80 transition-colors">
           去登录
         </button>
       </div>
@@ -44,12 +44,12 @@
       <!-- 已登录但无收藏 -->
       <div v-else-if="!loading && !videos.length && userStore.isLoggedIn"
            class="flex flex-col items-center py-24 gap-3 text-center">
-        <svg class="w-16 h-16 text-text-muted opacity-30" fill="none" stroke="currentColor" stroke-width="1.2" viewBox="0 0 24 24">
+        <svg class="w-16 h-16 text-text-primary/60 opacity-30" fill="none" stroke="currentColor" stroke-width="1.2" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round"
                 d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
         </svg>
-        <p class="text-text-primary font-medium">还没有喜欢的内容</p>
-        <router-link to="/" class="text-primary text-sm hover:underline">去首页发现内容</router-link>
+        <p class="text-text-primary font-medium text-lg">还没有喜欢的内容</p>
+        <router-link to="/" class="text-primary text-base hover:underline">去首页发现内容</router-link>
       </div>
     </div>
   </div>

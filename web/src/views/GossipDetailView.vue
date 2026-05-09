@@ -26,14 +26,14 @@
 
       <!-- 元信息行 -->
       <div class="flex flex-wrap items-center gap-3 mb-4 pb-4 border-b border-border/50">
-        <span class="flex items-center gap-1 text-xs text-text-muted">
+        <span class="flex items-center gap-1 text-sm text-text-primary/60">
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round"
                   d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
           </svg>
           {{ formatDate(post.published_at) }}
         </span>
-        <span class="flex items-center gap-1 text-xs text-text-muted">
+        <span class="flex items-center gap-1 text-sm text-text-primary/60">
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round"
                   d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
@@ -85,7 +85,7 @@
               </span>
             </div>
             <div class="p-2">
-              <p class="text-xs font-medium text-text-primary line-clamp-2 leading-snug
+              <p class="text-sm font-medium text-text-primary line-clamp-2 leading-snug
                          group-hover:text-primary transition-colors">
                 {{ v.title }}
               </p>
@@ -97,7 +97,7 @@
       <!-- 返回按钮 -->
       <div class="mt-8">
         <router-link to="/gossip"
-                     class="inline-flex items-center gap-1.5 text-xs text-text-muted hover:text-text-primary transition-colors">
+                     class="inline-flex items-center gap-1.5 text-sm text-text-primary/60 hover:text-text-primary transition-colors">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
           </svg>

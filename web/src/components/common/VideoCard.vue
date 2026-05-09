@@ -69,22 +69,22 @@
     </div>
 
     <!-- 标题 + 作者 + 时间 -->
-    <div class="p-2 space-y-1.5">
-      <h3 class="text-xs font-medium text-text-primary line-clamp-2 leading-snug
+    <div class="p-2.5 space-y-2">
+      <h3 class="text-sm font-medium text-text-primary line-clamp-2 leading-snug
                  group-hover:text-primary transition-colors">
         {{ video.title }}
       </h3>
-      <div class="flex items-center gap-1.5">
+      <div class="flex items-center gap-2">
         <!-- 头像：有则显示用户头像，无则默认 logo -->
         <img :src="video.author_avatar || '/logo.png'" :alt="video.author_name"
-             class="w-5 h-5 rounded-full shrink-0 object-cover"
+             class="w-6 h-6 rounded-full shrink-0 object-cover"
              @error="e => e.target.src='/logo.png'"/>
         <!-- 用户名 -->
-        <span class="text-text-muted text-[10px] flex-1 truncate leading-none">
+        <span class="text-text-primary/60 text-xs flex-1 truncate leading-none">
           {{ video.author_name || '投稿者' }}
         </span>
         <!-- 发布时间 -->
-        <span class="text-text-muted text-[10px] shrink-0 leading-none">
+        <span class="text-text-primary/60 text-xs shrink-0 leading-none">
           {{ fmtDate(video.published_at) }}
         </span>
       </div>

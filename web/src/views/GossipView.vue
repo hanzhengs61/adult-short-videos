@@ -7,10 +7,10 @@
         <div class="flex items-center gap-1 py-2 overflow-x-auto scrollbar-none">
           <button v-for="t in tags" :key="t.value"
                   @click="setTag(t.value)"
-                  :class="['shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all',
+                  :class="['shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-all',
                     activeTag === t.value
                       ? 'bg-primary text-white'
-                      : 'text-text-muted hover:text-text-primary hover:bg-bg-hover']">
+                      : 'text-text-primary/60 hover:text-text-primary hover:bg-bg-hover']">
             {{ t.label }}
           </button>
         </div>
@@ -60,16 +60,16 @@
 
           <!-- 信息区 -->
           <div class="p-3 space-y-1.5">
-            <h3 class="text-sm font-semibold text-text-primary leading-snug line-clamp-2
+            <h3 class="text-base font-semibold text-text-primary leading-snug line-clamp-2
                        group-hover:text-primary transition-colors">
               {{ post.title }}
             </h3>
-            <p v-if="post.summary" class="text-xs text-text-muted leading-relaxed line-clamp-2">
+            <p v-if="post.summary" class="text-sm text-text-primary/60 leading-relaxed line-clamp-2">
               {{ post.summary }}
             </p>
             <div class="flex items-center gap-3 pt-1">
               <!-- 浏览数 -->
-              <span class="flex items-center gap-1 text-[10px] text-text-muted">
+              <span class="flex items-center gap-1 text-xs text-text-primary/60">
                 <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                   <path stroke-linecap="round" stroke-linejoin="round"
@@ -79,7 +79,7 @@
                 {{ formatCount(post.view_count) }}
               </span>
               <!-- 发布时间 -->
-              <span class="text-[10px] text-text-muted ml-auto">{{ formatDate(post.published_at) }}</span>
+              <span class="text-xs text-text-primary/60 ml-auto">{{ formatDate(post.published_at) }}</span>
             </div>
           </div>
         </router-link>

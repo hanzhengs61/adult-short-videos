@@ -5,8 +5,7 @@
 
       <!-- 汉堡菜单（预留分类侧栏入口） -->
       <button @click="sidebarOpen = !sidebarOpen"
-              class="w-8 h-8 rounded-lg text-text-muted flex items-center justify-center
-               hover:text-text-primary transition-all shrink-0">
+              class="w-8 h-8 rounded-lg text-text-primary/60 flex items-center justify-center shrink-0">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/>
         </svg>
@@ -21,10 +20,10 @@
       <!-- 桌面导航（md+）-->
       <nav class="hidden md:flex items-center gap-0.5 ml-1">
         <router-link v-for="n in desktopNav" :key="n.to" :to="n.to"
-                     :class="['px-3 py-1.5 rounded-lg text-xs font-medium transition-all',
+                     :class="['px-3 py-1.5 rounded-lg text-base font-medium transition-all',
             isActive(n.to)
               ? 'text-primary bg-primary/10'
-              : 'text-text-muted hover:text-text-primary hover:bg-bg-hover']">
+              : 'text-text-primary/60 hover:text-text-primary hover:bg-bg-hover']">
           {{ n.label }}
         </router-link>
       </nav>
@@ -33,8 +32,7 @@
 
       <!-- 搜索图标（跳转探索页） -->
       <router-link to="/explore"
-                   class="w-8 h-8 rounded-lg text-text-muted flex items-center justify-center
-               hover:text-text-primary transition-all shrink-0">
+                   class="w-8 h-8 rounded-lg text-text-primary/60 flex items-center justify-center shrink-0">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2"
              stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
           <circle cx="11" cy="11" r="8"/>
@@ -44,13 +42,12 @@
 
       <!-- 添加到主屏幕（预留升级为下载 App 入口） -->
       <button @click="addToHomescreen"
-              class="flex items-center gap-1 px-2 h-8 rounded-lg border border-border text-text-muted
-               hover:border-border-light hover:text-text-primary transition-all shrink-0">
+              class="flex items-center gap-1 px-2 h-8 rounded-lg border border-border text-text-primary/60 shrink-0">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round"
                 d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/>
         </svg>
-        <span class="text-xs">添加主屏幕</span>
+        <span class="text-base font-bold">添加主屏幕</span>
       </button>
     </div>
   </header>

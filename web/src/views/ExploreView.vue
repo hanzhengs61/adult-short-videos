@@ -91,7 +91,7 @@
         <div class="flex flex-wrap gap-2">
           <button v-for="h in exploreStore.history" :key="h"
                   class="group flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-bg-surface border border-border
-                   text-text-secondary text-xs hover:border-primary/50 hover:text-primary transition-all">
+                   text-text-primary/60 text-sm hover:border-primary/50 hover:text-primary transition-all">
             <span @click="quickSearch(h)">{{ h }}</span>
             <span @click.stop="exploreStore.removeHistory(h)"
                   class="text-text-muted group-hover:text-primary/70 hover:text-red-400! transition-colors leading-none">×</span>
@@ -110,10 +110,10 @@
         </h2>
         <div class="flex flex-wrap gap-2">
           <button v-for="(k, i) in hotKeywords" :key="k" @click="quickSearch(k)"
-                  :class="['flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs border transition-all',
+                  :class="['flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm border transition-all',
               i < 3
                 ? 'bg-primary/10 border-primary/30 text-primary hover:bg-primary/20'
-                : 'bg-bg-surface border-border text-text-secondary hover:border-border-light hover:text-text-primary']">
+                : 'bg-bg-surface border-border text-text-primary/60 hover:border-border-light hover:text-text-primary']">
             <span :class="['font-bold text-[10px] w-3.5 text-center',
               i === 0 ? 'text-red-400' : i === 1 ? 'text-orange-400' : i === 2 ? 'text-yellow-400' : 'text-text-muted']">
               {{ i + 1 }}
@@ -160,10 +160,10 @@
                 </div>
               </div>
               <div class="min-w-0">
-                <p class="text-xs font-semibold text-text-primary truncate group-hover:text-primary transition-colors">
+                <p class="text-sm font-semibold text-text-primary truncate group-hover:text-primary transition-colors">
                   {{ actor.name }}
                 </p>
-                <p class="text-[10px] text-text-muted">创作者</p>
+                <p class="text-xs text-text-primary/60">创作者</p>
               </div>
             </div>
 
@@ -185,7 +185,7 @@
             </div>
 
             <div class="px-3 py-2">
-              <p class="text-[10px] text-text-muted">点击查看全部作品</p>
+              <p class="text-xs text-text-primary/60">点击查看全部作品</p>
             </div>
           </div>
 
