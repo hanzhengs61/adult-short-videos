@@ -3,7 +3,10 @@
   <main class="min-h-screen relative">
     <router-view v-slot="{ Component }">
       <transition name="fade">
-        <component :is="Component" :key="$route.path"/>
+        <!-- FeedView 不缓存（自身管理复杂播放状态），其余页面缓存以支持后退免请求 -->
+        <keep-alive :exclude="['FeedView']">
+          <component :is="Component" :key="$route.path"/>
+        </keep-alive>
       </transition>
     </router-view>
   </main>
@@ -87,7 +90,7 @@ const footerLinks = {
   account: [
     { label: '登录', action: () => userStore.openAuth('login') },
     { label: '注册', action: () => userStore.openAuth('register') },
-    { label: '我的收藏', action: () => userStore.openAuth('login') },
+    { label: '我的喜欢', action: () => userStore.openAuth('login') },
     { label: '个人主页', action: () => userStore.openAuth('login') },
   ],
   about: ['关于我们', '联系客服', '隐私政策', '使用条款'],

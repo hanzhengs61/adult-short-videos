@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div ref="homeRoot">
     <!-- 吸顶排序栏 -->
     <div class="sticky top-14 z-30 border-b border-border/60"
          style="background:rgba(13,13,15,0.92);backdrop-filter:blur(16px)">
@@ -75,7 +75,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, nextTick, onActivated, onMounted, onUnmounted } from 'vue'
 import { useHead } from '@vueuse/head'
 import VideoCard from '@/components/common/VideoCard.vue'
 import SortBar from '@/components/common/SortBar.vue'
@@ -93,9 +93,12 @@ useHead({
 })
 
 const videos = ref([])
+const homeRoot = ref(null)
 const page = ref(1)
 const activeSort = ref('created_at')
 const columnCount = ref(2)
+const HOME_FEED_RETURN_KEY = 'home_feed_return_anchor'
+const HOME_FEED_RETURN_PENDING_KEY = 'home_feed_return_pending'
 
 // 每 AD_EVERY 条真实视频后插入一个广告卡
 const AD_EVERY = 4
@@ -148,6 +151,62 @@ function setSort(v) {
   activeSort.value = v
   videos.value = []; page.value = 1; reset()
 }
+
+function scrollWithoutSmooth(top) {
+  const html = document.documentElement
+  const prevScrollBehavior = html.style.scrollBehavior
+  html.style.scrollBehavior = 'auto'
+  window.scrollTo(0, Math.max(0, top))
+  requestAnimationFrame(() => {
+    html.style.scrollBehavior = prevScrollBehavior
+  })
+}
+
+function findVideoCard(videoId) {
+  if (!homeRoot.value || !videoId) return null
+  return Array
+    .from(homeRoot.value.querySelectorAll('[data-feed-video-id]'))
+    .find(el => el.dataset.feedVideoId === String(videoId))
+}
+
+async function restoreFeedReturnAnchor() {
+  if (sessionStorage.getItem(HOME_FEED_RETURN_PENDING_KEY) !== '1') {
+    sessionStorage.removeItem(HOME_FEED_RETURN_KEY)
+    return
+  }
+  let anchor = null
+  try {
+    anchor = JSON.parse(sessionStorage.getItem(HOME_FEED_RETURN_KEY) || 'null')
+  } catch {}
+  if (!anchor?.videoId) {
+    sessionStorage.removeItem(HOME_FEED_RETURN_PENDING_KEY)
+    return
+  }
+
+  await nextTick()
+  const restoreOnce = () => {
+    const el = findVideoCard(anchor.videoId)
+    if (!el) return false
+    const rect = el.getBoundingClientRect()
+    const targetTop = window.scrollY + rect.top - (Number(anchor.top) || 0)
+    scrollWithoutSmooth(targetTop)
+    return true
+  }
+
+  if (!restoreOnce()) {
+    sessionStorage.removeItem(HOME_FEED_RETURN_KEY)
+    sessionStorage.removeItem(HOME_FEED_RETURN_PENDING_KEY)
+    return
+  }
+  setTimeout(restoreOnce, 120)
+  setTimeout(() => {
+    restoreOnce()
+    sessionStorage.removeItem(HOME_FEED_RETURN_KEY)
+    sessionStorage.removeItem(HOME_FEED_RETURN_PENDING_KEY)
+  }, 360)
+}
+
+onActivated(restoreFeedReturnAnchor)
 
 onMounted(() => {
   syncColumnCount()

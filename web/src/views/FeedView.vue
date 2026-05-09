@@ -3,7 +3,8 @@
 
     <!-- 滚动容器 -->
     <div ref="container" class="w-full h-full overflow-y-scroll snap-y snap-mandatory"
-         style="-webkit-overflow-scrolling:touch">
+         style="-webkit-overflow-scrolling:touch"
+         @scroll.passive="onContainerScroll">
 
       <div v-for="(v, idx) in videos" :key="v.video_id"
            :data-idx="idx"
@@ -28,13 +29,10 @@
         <!-- 视频 Slide -->
         <template v-else>
 
-        <!-- 封面图（始终可见，视频就绪后被覆盖；object-contain 与视频保持一致比例） -->
-        <img :src="v.cover_url || '/placeholder.svg'"
-             class="absolute inset-0 w-full h-full object-contain pointer-events-none"/>
-
-        <!-- 视频元素（object-contain 保持原始比例，横屏视频不裁剪，黑边填充） -->
+        <!-- 视频元素：用 poster 属性显示封面，避免 video 元素黑色背景遮挡 cover -->
         <video
             :ref="el => { if (el) videoRefs[idx] = el }"
+            :poster="v.cover_url || '/placeholder.svg'"
             class="absolute inset-0 w-full h-full object-contain"
             style="background:#000"
             playsinline preload="none"
@@ -61,70 +59,74 @@
           </div>
         </transition>
 
-        <!-- 右侧操作栏 -->
-        <div v-if="!cleanMode" class="absolute right-3 bottom-52 flex flex-col items-center gap-5">
-          <button @click.stop="toggleFavorite(v)" class="flex flex-col items-center gap-1">
-            <div :class="['w-11 h-11 rounded-full bg-black/30 backdrop-blur flex items-center justify-center transition-all',
-              v._favorited ? 'text-yellow-400' : 'text-white']">
-              <svg class="w-6 h-6" :fill="v._favorited ? 'currentColor' : 'none'"
-                   stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round"
-                      d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z"/>
+        <!-- 右侧操作栏：头像+关注 / 点赞 / 评论 / 分享 -->
+        <div v-if="!cleanMode" class="feed-action-rail absolute right-2.5 bottom-24 z-10">
+
+          <!-- 头像区域，底部悬挂 + 号关注按钮 -->
+          <div class="feed-author-action">
+            <button class="feed-avatar-btn" type="button" @click.stop="openAuthorDrawer(v)">
+              <div class="feed-avatar">
+                <img v-if="v.author_avatar" :src="v.author_avatar" :alt="v.author_name"
+                     class="w-full h-full object-cover" @error="e => e.target.style.display='none'"/>
+                <span v-if="!v.author_avatar && v.author_name">{{ v.author_name[0]?.toUpperCase() }}</span>
+              </div>
+            </button>
+            <button v-if="v.author_name && !followedAuthors.has(v.author_name) && v.author_name !== userStore.userInfo?.username"
+                    type="button"
+                    @click.stop="toggleFollow(v.author_name)"
+                    class="feed-follow-btn">
+              <svg class="w-3.5 h-3.5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
               </svg>
-            </div>
-            <span class="text-white text-[10px] font-medium drop-shadow">{{ fmtN(v.favorite_count) }}</span>
+            </button>
+          </div>
+
+          <!-- 点赞 -->
+          <button @click.stop="toggleLike(v)" type="button" class="feed-action-btn">
+            <svg :class="['feed-action-icon feed-heart-icon transition-all', v._liked ? 'text-[#ff2b54]' : 'text-white']"
+                 fill="currentColor" viewBox="0 0 48 48" aria-hidden="true">
+              <path d="M24 42.4 20.9 39.6C10 29.8 3 23.5 3 15.8 3 9.5 7.9 4.8 14.1 4.8c3.5 0 6.9 1.6 9.1 4.2 2.2-2.6 5.6-4.2 9.1-4.2 6.2 0 11.1 4.7 11.1 11 0 7.7-7 14-17.9 23.8L24 42.4Z"/>
+            </svg>
+            <span class="feed-action-count">{{ fmtN(v.favorite_count) }}</span>
           </button>
 
-          <!-- 评论按钮 -->
-          <button @click.stop="openComment(v)" class="flex flex-col items-center gap-1">
-            <div class="w-11 h-11 rounded-full bg-black/30 backdrop-blur flex items-center justify-center text-white">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round"
-                      d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
-              </svg>
-            </div>
-            <span class="text-white text-[10px] font-medium drop-shadow">{{ fmtN(v.comment_count) }}</span>
+          <!-- 评论 -->
+          <button @click.stop="openComment(v)" type="button" class="feed-action-btn">
+            <svg class="feed-action-icon text-white" fill="currentColor" viewBox="0 0 48 48" aria-hidden="true">
+              <path d="M24 6C13.2 6 4.5 13.3 4.5 22.3c0 5.3 3 10 7.7 13 0 2.4-.8 4.7-2.2 6.6-.4.5.1 1.2.7 1 3.4-.9 6.4-2.3 8.8-4.2 1.4.3 2.9.4 4.5.4 10.8 0 19.5-7.3 19.5-16.4S34.8 6 24 6Zm-8.1 18.1a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5Zm8.1 0a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5Zm8.1 0a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5Z"/>
+            </svg>
+            <span class="feed-action-count">{{ fmtN(v.comment_count) }}</span>
           </button>
 
-          <!-- 分享按钮 -->
-          <button @click.stop="share(v)" class="flex flex-col items-center gap-1">
-            <div class="w-11 h-11 rounded-full bg-black/30 backdrop-blur flex items-center justify-center text-white">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round"
-                      d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/>
-              </svg>
-            </div>
-            <span class="text-white text-[10px] font-medium drop-shadow">分享</span>
+          <!-- 分享 -->
+          <button @click.stop="openShare(v)" type="button" class="feed-action-btn">
+            <svg class="feed-action-icon feed-share-icon text-white" fill="currentColor" viewBox="0 0 48 48" aria-hidden="true">
+              <path d="M36.6 21.1 25.8 10.3c-1.1-1.1-3-.3-3 1.3v6.1c-9.5.8-16 6.7-18.1 16.5-.2 1.1 1.2 1.7 1.9.8 4.1-5.2 9.2-7.7 16.2-7.9v6.1c0 1.6 1.9 2.4 3 1.3l10.8-10.8c.7-.7.7-1.9 0-2.6Z"/>
+            </svg>
+            <span class="feed-action-count">{{ fmtN(v.share_count) }}</span>
           </button>
         </div>
 
         <!-- 底部信息 -->
-        <div v-if="!cleanMode" class="absolute left-3 right-16 bottom-24">
-          <!-- 作者行 -->
-          <div v-if="v.author_name" class="flex items-center gap-2 mb-2">
-            <div class="w-7 h-7 rounded-full overflow-hidden bg-white/25 shrink-0 flex items-center justify-center text-white text-xs font-bold">
-              <img v-if="v.author_avatar" :src="v.author_avatar" :alt="v.author_name"
-                   class="w-full h-full object-cover" @error="e => e.target.style.display='none'"/>
-              <span v-if="!v.author_avatar">{{ v.author_name[0] }}</span>
-            </div>
-            <span class="text-white text-xs font-medium truncate drop-shadow max-w-[8rem]">{{ v.author_name }}</span>
-            <button
-                    :class="['shrink-0 text-xs px-2.5 py-0.5 rounded-full font-medium transition-all',
-                             followedAuthors.has(v.author_name) ? 'bg-white/20 text-white/70' : 'bg-primary/90 text-white']"
-                    @click.stop="toggleFollow(v.author_name)">
-              {{ followedAuthors.has(v.author_name) ? '已关注' : '+ 关注' }}
+        <div v-if="!cleanMode" class="absolute left-3 right-20 bottom-24">
+          <!-- 作者名（@格式，点击打开用户抽屉） -->
+          <div v-if="v.author_name" class="mb-1">
+            <button @click.stop="openAuthorDrawer(v)"
+                    class="text-white text-base font-bold drop-shadow active:opacity-70 transition-opacity">
+              @{{ v.author_name }}
             </button>
           </div>
-          <!-- 标题行（统一展开/收起，展开后显示控制按钮） -->
-          <div class="flex items-end gap-1.5">
-            <p :class="['flex-1 min-w-0 text-white font-semibold text-sm leading-snug drop-shadow', expandedTitles.has(v.video_id) ? '' : 'line-clamp-2']"
-               @click.stop="toggleTitle(v.video_id)">{{ v.title }}</p>
-            <button class="shrink-0 mb-px bg-white/20 text-white text-xs px-2 py-0.5 rounded-full whitespace-nowrap"
-                    @click.stop="toggleTitle(v.video_id)">
-              {{ expandedTitles.has(v.video_id) ? '收起' : '展开' }}
+          <!-- 文案（3 行省略，不展开） -->
+          <p class="text-white text-[13px] leading-snug drop-shadow line-clamp-3 mb-2">{{ v.title }}</p>
+          <!-- 标签行，点击跳转搜索 -->
+          <div v-if="getTags(v).length" class="flex flex-wrap gap-1.5 mb-1.5">
+            <button v-for="tag in getTags(v)" :key="tag"
+                    @click.stop="goTag(tag)"
+                    class="text-white text-[11px] font-medium active:opacity-60 transition-opacity">
+              #{{ tag.replace(/^#/, '') }}
             </button>
           </div>
-          <div class="flex items-center gap-1 text-white/60 text-xs mt-1.5">
+          <div class="flex items-center gap-1 text-white/45 text-[10px]">
             <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
               <path d="M8 5v14l11-7z"/>
             </svg>
@@ -250,11 +252,131 @@
         </div>
       </div>
     </transition>
+
+    <!-- 用户信息抽屉：点击头像弹出 -->
+    <transition name="slide-up">
+      <div v-if="authorDrawer"
+           class="absolute inset-0 z-20 flex flex-col justify-end bg-black/50"
+           @click.self="authorDrawer = null">
+        <div class="bg-bg-surface rounded-t-2xl border-t border-border flex flex-col max-h-[75vh]">
+          <!-- 关闭把手 -->
+          <div class="flex justify-center pt-2.5 pb-1 shrink-0">
+            <div class="w-9 h-1 rounded-full bg-white/20"></div>
+          </div>
+          <!-- 用户信息头部 -->
+          <div class="flex items-center gap-3 px-4 py-3 shrink-0">
+            <div class="w-14 h-14 rounded-full overflow-hidden border-2 border-white/20 bg-white/10 flex items-center justify-center text-xl font-bold text-white shrink-0">
+              <img v-if="authorDrawer.avatar" :src="authorDrawer.avatar"
+                   class="w-full h-full object-cover" @error="e => e.target.style.display='none'"/>
+              <span v-if="!authorDrawer.avatar">{{ authorDrawer.name?.[0] }}</span>
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="text-text-primary font-bold text-base truncate">@{{ authorDrawer.name }}</p>
+              <p class="text-text-muted text-xs mt-0.5">{{ authorDrawer.videoCount != null ? authorDrawer.videoCount + ' 个视频' : '' }}</p>
+            </div>
+            <!-- 非本人才显示关注按钮 -->
+            <button v-if="authorDrawer.name !== userStore.userInfo?.username"
+                    @click="toggleFollow(authorDrawer.name)"
+                    :class="['px-5 py-2 rounded-full font-semibold text-sm transition-all active:scale-95 shrink-0',
+                             followedAuthors.has(authorDrawer.name)
+                               ? 'bg-white/10 text-text-secondary border border-white/15'
+                               : 'bg-primary text-white']">
+              {{ followedAuthors.has(authorDrawer.name) ? '已关注' : '+ 关注' }}
+            </button>
+          </div>
+          <!-- 视频网格 -->
+          <div class="flex-1 overflow-y-auto px-3 pb-5">
+            <div v-if="authorDrawer.videosLoading" class="grid grid-cols-3 gap-1.5 pt-1">
+              <div v-for="i in 6" :key="i" class="aspect-[9/16] rounded-lg bg-white/5 animate-pulse"></div>
+            </div>
+            <div v-else-if="authorDrawer.videos?.length" class="grid grid-cols-3 gap-1.5 pt-1">
+              <button v-for="v in authorDrawer.videos" :key="v.video_id"
+                      @click="goToAuthorVideo(v)"
+                      class="relative aspect-[9/16] rounded-lg overflow-hidden bg-black block">
+                <img :src="v.cover_url" class="w-full h-full object-cover"/>
+                <div class="absolute bottom-1 left-1 flex items-center gap-0.5 text-white text-[10px]">
+                  <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                  {{ fmtN(v.play_count) }}
+                </div>
+              </button>
+            </div>
+            <p v-else class="text-center py-8 text-text-muted text-sm">暂无视频</p>
+          </div>
+        </div>
+      </div>
+    </transition>
+
+    <!-- 分享面板：点击纸飞机弹出 -->
+    <transition name="slide-up">
+      <div v-if="shareVideo"
+           class="absolute inset-0 z-20 flex flex-col justify-end bg-black/50"
+           @click.self="shareVideo = null">
+        <div class="bg-bg-surface rounded-t-2xl border-t border-border">
+          <div class="flex justify-center pt-2.5 pb-1">
+            <div class="w-9 h-1 rounded-full bg-white/20"></div>
+          </div>
+          <div class="flex items-center justify-between px-4 py-2 border-b border-border/50">
+            <span class="text-sm font-semibold text-text-primary">分享给</span>
+            <button @click="shareVideo = null">
+              <svg class="w-5 h-5 text-text-secondary" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+          <!-- 分享渠道网格 -->
+          <div class="grid grid-cols-4 gap-y-4 px-6 py-5">
+            <!-- 复制链接 -->
+            <button @click="doShareCopy" class="flex flex-col items-center gap-2">
+              <div class="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">
+                <svg class="w-6 h-6 text-text-primary" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+                </svg>
+              </div>
+              <span class="text-text-secondary text-[11px]">复制链接</span>
+            </button>
+            <!-- 系统分享（仅支持 Web Share API 的设备显示） -->
+            <button v-if="canNativeShare" @click="doShareNative" class="flex flex-col items-center gap-2">
+              <div class="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">
+                <svg class="w-6 h-6 text-text-primary" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                </svg>
+              </div>
+              <span class="text-text-secondary text-[11px]">系统分享</span>
+            </button>
+            <!-- 微信（触发系统分享，移动端自动列出微信） -->
+            <button @click="doShareNative" class="flex flex-col items-center gap-2">
+              <div class="w-12 h-12 rounded-full bg-[#07C160] flex items-center justify-center">
+                <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M8.691 2.188C3.891 2.188 0 5.476 0 9.53c0 2.212 1.17 4.203 3.002 5.55a.59.59 0 01.213.665l-.39 1.48c-.019.07-.048.141-.048.213 0 .163.13.295.29.295a.326.326 0 00.167-.054l1.903-1.114a.864.864 0 01.717-.098 10.16 10.16 0 002.837.403c.276 0 .543-.027.811-.05-.857-2.578.157-4.972 1.932-6.446 1.703-1.415 3.882-1.98 5.853-1.838-.576-3.583-4.196-6.348-8.596-6.348zM5.785 5.991c.642 0 1.162.529 1.162 1.182a1.17 1.17 0 01-1.162 1.18A1.17 1.17 0 014.623 7.17c0-.653.52-1.18 1.162-1.18zm5.813 0c.642 0 1.162.529 1.162 1.182a1.17 1.17 0 01-1.162 1.18 1.17 1.17 0 01-1.162-1.18c0-.653.52-1.18 1.162-1.18zm5.34 2.867c-1.797-.052-3.746.512-5.28 1.786-1.72 1.428-2.687 3.72-1.78 6.22.942 2.453 3.666 4.229 6.884 4.229.826 0 1.622-.12 2.361-.336a.722.722 0 01.598.082l1.584.926a.272.272 0 00.14.047c.134 0 .24-.111.24-.247 0-.06-.023-.12-.038-.177l-.327-1.233a.49.49 0 01.177-.554C22.924 18.48 24 16.82 24 14.98c0-3.21-2.931-5.837-7.062-6.122zm-3.318 2.333c.535 0 .969.44.969.982a.976.976 0 01-.969.983.976.976 0 01-.969-.983c0-.542.434-.982.969-.982zm6.748 0c.535 0 .969.44.969.982a.976.976 0 01-.969.983.976.976 0 01-.969-.983c0-.542.434-.982.969-.982z"/>
+                </svg>
+              </div>
+              <span class="text-text-secondary text-[11px]">微信</span>
+            </button>
+            <!-- 微博 -->
+            <button @click="doShareWeibo" class="flex flex-col items-center gap-2">
+              <div class="w-12 h-12 rounded-full bg-[#E6162D] flex items-center justify-center">
+                <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M10.098 20.323c-3.977.391-7.414-1.406-7.672-4.02-.259-2.609 2.759-5.047 6.74-5.441 3.979-.394 7.413 1.404 7.671 4.018.259 2.6-2.759 5.049-6.74 5.443zm5.833-11.09c-.545-.165-1.01-.276-1.326-.346.105-.35.183-.704.183-1.021 0-2.209-2.502-4.001-5.59-4.001S3.609 5.657 3.609 7.866c0 2.208 2.502 4.001 5.59 4.001.326 0 .661-.023.989-.068.081.357.259.672.535.915-1.138.044-2.221-.074-3.158-.326-1.108-.302-2.151-.867-3.007-1.666a.596.596 0 00-.849.016.616.616 0 00.016.861c1.001.944 2.209 1.597 3.479 1.952.975.266 2.012.404 3.066.404 1.048 0 2.075-.136 3.039-.395 1.271-.346 2.479-.992 3.484-1.924a.616.616 0 00.021-.867.596.596 0 00-.849-.011c-.521.49-1.106.901-1.734 1.23.235-.493.363-1.037.363-1.609 0-.146-.01-.289-.03-.431.38.088.748.195 1.045.281zm2.465-3.07c-.488-1.391-1.908-2.293-3.469-2.19l-.006-.016c-.184.015-.34.13-.415.301-.076.169-.048.365.075.507.123.143.316.203.499.155l.006.017c.957-.063 1.857.508 2.178 1.404.32.896-.024 1.881-.832 2.378l.006.016c-.163.083-.258.256-.244.44.014.184.135.342.309.403.175.061.368.012.494-.123l-.006-.016c1.212-.733 1.729-2.189 1.405-3.276zm2.364-1.036c-.978-2.788-3.82-4.598-6.945-4.388l-.01-.029c-.185.014-.342.128-.418.3-.076.171-.049.368.075.511.124.143.317.204.5.156l.01.029c2.596-.172 5.035 1.353 5.84 3.691.806 2.337-.127 4.847-2.198 6.079l.01.029c-.163.084-.258.257-.244.441.014.185.136.343.31.404.174.061.367.012.494-.123l-.009-.028c2.553-1.518 3.621-4.573 2.585-7.072z"/>
+                </svg>
+              </div>
+              <span class="text-text-secondary text-[11px]">微博</span>
+            </button>
+          </div>
+          <!-- 复制成功提示 -->
+          <transition name="fade-icon">
+            <div v-if="copyToast"
+                 class="absolute bottom-32 left-1/2 -translate-x-1/2 bg-black/80 text-white text-xs px-4 py-2 rounded-full pointer-events-none whitespace-nowrap">
+              链接已复制
+            </div>
+          </transition>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 
 <script setup>
-import {computed, nextTick, onMounted, onUnmounted, reactive, ref} from 'vue'
+import {computed, nextTick, onMounted, onUnmounted, reactive, ref, watch} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import Hls from 'hls.js'
 import { videoApi, favoriteApi, playApi, followApi } from '@/api'
@@ -265,6 +387,7 @@ const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
 
+
 const feedRoot = ref(null)
 const container = ref(null)
 const videos = ref([])
@@ -272,12 +395,20 @@ const videoRefs = reactive([])   // 用 reactive 避免 ref[idx] 赋值到包装
 const pausedIdx = ref(-1)
 const currentPlayingIdx = ref(-1)
 const commentVideo = ref(null)
+// 用户信息抽屉：{ name, avatar }
+const authorDrawer = ref(null)
+const feedBackStack = ref([])
+// 分享面板当前视频
+const shareVideo = ref(null)
+// 复制链接成功提示
+const copyToast = ref(false)
+// 是否支持原生分享
+const canNativeShare = typeof navigator !== 'undefined' && !!navigator.share
 const loading = ref(false)
 const page = ref(1)
 const hasMore = ref(true)
 const screenH = ref(window.innerHeight)
 const startIdRaw = route.query.id == null ? '' : String(route.query.id)
-const startId = Number(startIdRaw) || 0
 const sentinel = ref(null)
 const cleanMode = ref(false)
 const continuousPlay = ref(true)
@@ -292,15 +423,20 @@ const speedOptions = [
 const playbackRate = ref(1)
 const showSpeedMenu = ref(false)
 const playStates = reactive({})
-const expandedTitles = reactive(new Set())
 const followedAuthors = reactive(new Set())
+const checkedLikeIds = new Set()
 
-function toggleTitle(videoId) {
-  if (expandedTitles.has(videoId)) {
-    expandedTitles.delete(videoId)
-  } else {
-    expandedTitles.add(videoId)
-  }
+// 取视频标签：优先用 v.tags 数组，否则从标题解析 #tag
+function getTags(v) {
+  if (Array.isArray(v.tags) && v.tags.length) return v.tags
+  const matches = (v.title || '').match(/#[\w一-鿿]+/g)
+  return matches ? matches.slice(0, 5) : []
+}
+
+// 点击标签跳转搜索页
+function goTag(tag) {
+  const q = tag.replace(/^#/, '')
+  router.push({ path: '/explore', query: { q } })
 }
 
 async function checkFollowStatus(authors) {
@@ -332,6 +468,10 @@ const playbackRateLabel = computed(() => playbackRate.value === 1 ? '倍速' : p
 const orderByAllowed = ['created_at', 'play_count', 'comment_count', 'favorite_count']
 const orderByRaw = route.query.order_by == null ? '' : String(route.query.order_by)
 const orderBy = orderByAllowed.includes(orderByRaw) ? orderByRaw : 'created_at'
+// 作者过滤模式：仅加载该作者视频。改为 ref 以便抽屉切换时动态生效。
+const authorFilter = ref(route.query.author ? String(route.query.author) : '')
+const PAGE_SIZE = 20
+const AD_EVERY = 4
 // idx -> { current: number, duration: number }
 const videoTimes = reactive({})
 
@@ -341,18 +481,10 @@ const hlsMap = {}
 const hlsReady = new Set()
 // 待播放的 idx（等 MANIFEST_PARSED 后播放）
 let pendingPlay = -1
+let restoringFeedFrame = false
 
-let sentinelObserver = null
-
-function observeSentinel() {
-  sentinelObserver?.disconnect()
-  sentinelObserver = null
-  if (!sentinel.value || !container.value) return
-  sentinelObserver = new IntersectionObserver(([entry]) => {
-    if (entry.isIntersecting) fetchMore()
-  }, {root: container.value, rootMargin: '200px', threshold: 0.01})
-  sentinelObserver.observe(sentinel.value)
-}
+// 已移除 sentinel IntersectionObserver：初始化时 sentinel 紧贴视口
+// 容易导致死循环触发 fetchMore，改用 onContainerScroll 监听滚动到底加载
 
 function fmtN(n) {
   if (!n) return '0'
@@ -459,6 +591,7 @@ function playAt(idx) {
   initVideo(idx)
 
   const v = videos.value[idx]
+  checkLike(v)
   // 观看视频不应要求登录；仅记录播放历史需要登录，避免 401 导致重定向。
   if (v && userStore.isLoggedIn) playApi.record(v.video_id).catch(() => {
   })
@@ -502,6 +635,16 @@ function isPlaying(idx) {
 
 async function handleEnded(idx) {
   playStates[idx] = false
+  // 防御：如果 video 没有真正播放完（duration 无效、或 currentTime 远未到末尾），
+  // 视为加载错误而非正常结束。这种情况自动切到下一个会陷入"疯狂下滑"循环。
+  const el = videoRefs[idx]
+  if (el) {
+    const dur = el.duration
+    if (!dur || !isFinite(dur) || dur < 1 || el.currentTime < dur - 0.5) {
+      pausedIdx.value = idx
+      return
+    }
+  }
   if (!continuousPlay.value) {
     pausedIdx.value = idx
     return
@@ -572,35 +715,29 @@ function observeItems() {
   })
 }
 
-async function checkFavorites(list) {
-  if (!userStore.isLoggedIn || !list.length) return
-  await Promise.allSettled(
-      list.map(v =>
-          favoriteApi.check(v.video_id)
-              .then(res => {
-                v._favorited = !!res.data?.is_favorited
-              })
-              .catch(() => {
-              })
-      )
-  )
+function checkLike(v) {
+  if (!userStore.isLoggedIn || !v || v._isAd || !v.video_id || checkedLikeIds.has(v.video_id)) return
+  checkedLikeIds.add(v.video_id)
+  favoriteApi.check(v.video_id)
+    .then(res => { v._liked = !!(res.data?.is_favorited ?? res.data?.is_favorite) })
+    .catch(() => { checkedLikeIds.delete(v.video_id) })
 }
 
 async function fetchMore() {
   if (loading.value || !hasMore.value) return
   loading.value = true
   try {
-    const pageSize = 20
-    const res = await videoApi.list({page: page.value, page_size: pageSize, order_by: orderBy})
+    const params = {page: page.value, page_size: PAGE_SIZE, order_by: orderBy}
+    if (authorFilter.value) params.author_name = authorFilter.value
+    const res = await videoApi.list(params)
     const rawList = res.data?.videos || []
     // 过滤时跳过广告项，防止广告 ID 干扰去重逻辑
     const list = rawList
         .filter(v => !videos.value.some(e => !e._isAd && e.video_id === v.video_id))
-        .map(v => ({...v, _favorited: false}))
+        .map(v => ({...v, _liked: false}))
 
     // 每 AD_EVERY 条真实视频后插入一个广告 slide
     // 用 (globalRealIdx + 1) 使第一个广告出现在第 AD_EVERY 条视频之后（第 AD_EVERY+1 个位置）
-    const AD_EVERY = 4
     const realCount = videos.value.filter(v => !v._isAd).length
     const withAds = []
     list.forEach((v, i) => {
@@ -615,12 +752,13 @@ async function fetchMore() {
     page.value++
     // 注意：这里用 rawList 判断是否到底，而不是用 filter 后长度。
     // 否则当目标视频重复被过滤时，会误判”已到底”，导致无法继续滑动。
-    if (rawList.length < pageSize) hasMore.value = false
-    await checkFavorites(list)
+    if (rawList.length < PAGE_SIZE) hasMore.value = false
+    // 防御：如果整页全是重复（dedup 后 0 条新增），且 rawList 仍为整页大小，
+    // 说明分页接口卡在原地，强制停止避免 sentinel 反复触发死循环
+    if (rawList.length > 0 && list.length === 0) hasMore.value = false
     await checkFollowStatus(list.map(v => v.author_name))
     await nextTick()
     observeItems()
-    observeSentinel()
   } catch {
   }
   loading.value = false
@@ -662,119 +800,208 @@ async function toggleFullscreen() {
 }
 
 function goBack() {
+  if (authorDrawer.value) {
+    authorDrawer.value = null
+    return
+  }
+  const frame = feedBackStack.value.pop()
+  if (frame) {
+    restoreFeedFrame(frame)
+    return
+  }
   stopAll()
-  router.back()
+  if (window.history.state?.back) {
+    sessionStorage.setItem('home_feed_return_pending', '1')
+    router.back()
+  } else {
+    router.push('/')
+  }
 }
 
+// 触底加载：用户滚动到距离底部 1.5 屏内时触发 fetchMore
+// loading/!hasMore 时 fetchMore 自身会立即 return，无需在此判断
 function onContainerScroll() {
   const el = container.value
   if (!el) return
   if (el.scrollHeight - el.scrollTop - el.clientHeight < screenH.value * 1.5) fetchMore()
 }
 
-onMounted(async () => {
-  // 搜索分页大小与 fetchMore 保持一致，避免 page.value 错位导致后续翻页跳号
-  const pageSize = 20
+async function loadInitialFeed() {
+  await fetchMore()
+  await nextTick()
+  observeItems()
+  playAt(0)
+}
 
-  if (startIdRaw) {
-    const maxSearchPages = 50
-    let foundIdx = -1
-    let currentPage = 1
-    let lastRawLen = 0
-    videos.value = []
-    hlsReady.clear()
-    Object.keys(hlsMap).forEach(k => delete hlsMap[k])
+// 重置 FeedView 内部状态：用于"原地切换"到新起点视频（抽屉跳转、URL query 切换）
+// 不修改 authorFilter，由调用方按需在调用前设置
+function resetFeedState() {
+  stopAll()
+  Object.values(hlsMap).forEach(h => { try { h.destroy() } catch {} })
+  for (const k of Object.keys(hlsMap)) delete hlsMap[k]
+  hlsReady.clear()
+  itemObservers.forEach(o => o.disconnect())
+  itemObservers = []
+  // observedEls 是 WeakSet，DOM 销毁后旧元素自动 GC
+  Object.keys(videoTimes).forEach(k => delete videoTimes[k])
+  Object.keys(playStates).forEach(k => delete playStates[k])
+  videoRefs.length = 0
+  pausedIdx.value = -1
+  currentPlayingIdx.value = -1
+  pendingPlay = -1
+  page.value = 1
+  hasMore.value = true
+  loading.value = false
+  videos.value = []
+}
 
-    while (currentPage <= maxSearchPages && foundIdx < 0) {
-      const res = await videoApi.list({page: currentPage, page_size: pageSize, order_by: orderBy})
-      const rawList = res.data?.videos || []
-      lastRawLen = rawList.length
+function getCurrentVideo() {
+  const idx = currentPlayingIdx.value >= 0
+    ? currentPlayingIdx.value
+    : Math.round((container.value?.scrollTop || 0) / screenH.value)
+  return videos.value[idx] && !videos.value[idx]._isAd ? videos.value[idx] : null
+}
 
-      const newOnes = rawList
-          .filter(v => !videos.value.some(e => e.video_id === v.video_id))
-          .map(v => ({...v, _favorited: false}))
+function buildFeedFrameFromDrawer(drawer) {
+  const currentVideo = getCurrentVideo()
+  return {
+    type: 'author-drawer',
+    query: {...route.query},
+    scrollTop: container.value?.scrollTop || 0,
+    videoId: currentVideo?.video_id ? String(currentVideo.video_id) : '',
+    drawer: {
+      name: drawer.name,
+      avatar: drawer.avatar,
+      videos: drawer.videos || [],
+      videosLoading: false,
+      videoCount: drawer.videoCount,
+    },
+  }
+}
 
-      videos.value.push(...newOnes)
+async function restoreFeedFrame(frame) {
+  stopAll()
+  const idStr = frame.videoId || (frame.query?.id ? String(frame.query.id) : '')
+  const canRestoreInPlace = !idStr || videos.value.some(v => !v._isAd && String(v.video_id) === idStr)
 
-      foundIdx = videos.value.findIndex(v => String(v.video_id) === startIdRaw)
-      if (rawList.length < pageSize) break
-      currentPage++
+  if (frame.query && JSON.stringify(route.query) !== JSON.stringify(frame.query)) {
+    authorFilter.value = frame.query.author ? String(frame.query.author) : ''
+    restoringFeedFrame = true
+    try {
+      await router.replace({ path: '/feed', query: frame.query })
+      await nextTick()
+    } finally {
+      restoringFeedFrame = false
     }
-
-    // 下一次 fetchMore 从哪一页继续
-    page.value = currentPage + 1
-    hasMore.value = lastRawLen >= pageSize
-
-    if (foundIdx < 0) {
-      return
-    }
-
-    // 向收集的视频插入广告，再重新查找 foundIdx（广告插入后各视频的 idx 会偏移）
-    const AD_EVERY = 4
-    const withAds = []
-    videos.value.forEach((v, i) => {
-      withAds.push(v)
-      if ((i + 1) % AD_EVERY === 0) {
-        withAds.push({ _isAd: true, video_id: `_ad_${i + 1}` })
-      }
-    })
-    videos.value = withAds
-    foundIdx = videos.value.findIndex(v => String(v.video_id) === startIdRaw)
-
-    const realVideos = videos.value.filter(v => !v._isAd)
-    await checkFavorites(realVideos)
-    await checkFollowStatus(realVideos.map(v => v.author_name))
-    await nextTick()
-    if (container.value) container.value.scrollTop = foundIdx * screenH.value
-    // 等浏览器真正落实滚动，避免 IntersectionObserver 用旧 scrollTop=0
-    // 触发 playAt(0)，把刚 initVideo 完的 foundIdx 状态覆盖掉，导致永远不会调 play()
-    await new Promise(r => requestAnimationFrame(r))
-    observeItems()
-    playAt(foundIdx)
-  } else {
-    // 不带目标 ID：正常加载第一页并从 0 开始播放
-    await fetchMore()
-    await nextTick()
-    observeItems()
-    playAt(0)
   }
 
-  // 用 sentinel 触底加载，避免 snap/阈值导致“第9条后不再触发加载”
-  observeSentinel()
+  if (!canRestoreInPlace && idStr) {
+    authorFilter.value = frame.query?.author ? String(frame.query.author) : ''
+    resetFeedState()
+    await loadFromVideoId(idStr)
+  }
+
+  await nextTick()
+  const restoredIdx = idStr
+    ? videos.value.findIndex(v => !v._isAd && String(v.video_id) === idStr)
+    : -1
+  const top = restoredIdx >= 0 ? restoredIdx * screenH.value : frame.scrollTop
+  if (container.value) container.value.scrollTop = top || 0
+  requestAnimationFrame(() => {
+    const idx = restoredIdx >= 0 ? restoredIdx : Math.round((container.value?.scrollTop || 0) / screenH.value)
+    playAt(idx)
+  })
+  if (frame.type === 'author-drawer' && frame.drawer) {
+    authorDrawer.value = {...frame.drawer}
+  }
+}
+
+// 以单个视频为起点初始化 Feed：
+//   1) 一次 detail API 拿到目标视频，立刻作为 position 0 显示并播放（不论第几条都瞬间到位）
+//   2) 后台并发拉常规列表，去重追加到目标后面
+//   3) 拉不到目标时回退到普通流
+async function loadFromVideoId(targetId) {
+  let target = null
+  try {
+    const res = await videoApi.detail(targetId)
+    target = res.data?.video || res.data || null
+  } catch {}
+
+  if (!target || !target.video_id) {
+    await loadInitialFeed()
+    return
+  }
+
+  target._liked = false
+  videos.value = [target]
+  await checkFollowStatus([target.author_name])
+  await nextTick()
+  if (container.value) container.value.scrollTop = 0
+  observeItems()
+  playAt(0)
+  // 后台拉后续视频，不阻塞首屏
+  fetchMore()
+}
+
+onMounted(async () => {
+  if (startIdRaw) {
+    await loadFromVideoId(startIdRaw)
+  } else {
+    await loadInitialFeed()
+  }
+
   window.addEventListener('resize', onResize)
   document.addEventListener('fullscreenchange', syncFullscreenState)
   document.addEventListener('webkitfullscreenchange', syncFullscreenState)
+})
+
+// 监听 URL query 变化（抽屉切视频会 router.replace，浏览器前进后退也会触发）
+// 同实例原地重置内容，避免重新挂载组件 + 不增加历史栈
+watch(() => route.query.id, async (newId) => {
+  if (restoringFeedFrame) return
+  if (!newId) return
+  const idStr = String(newId)
+  // 已在当前列表里：原地滚动定位（避免无谓 reset）
+  const existingIdx = videos.value.findIndex(v => !v._isAd && String(v.video_id) === idStr)
+  if (existingIdx >= 0) {
+    if (container.value) container.value.scrollTop = existingIdx * screenH.value
+    requestAnimationFrame(() => playAt(existingIdx))
+    return
+  }
+  // 不在列表 → 切作者过滤 + 重置 + 以新视频为起点重新加载
+  authorFilter.value = route.query.author ? String(route.query.author) : ''
+  resetFeedState()
+  await loadFromVideoId(idStr)
 })
 
 onUnmounted(() => {
   stopAll()
   Object.values(hlsMap).forEach(h => h.destroy())
   itemObservers.forEach(o => o.disconnect())
-  sentinelObserver?.disconnect()
   window.removeEventListener('resize', onResize)
   document.removeEventListener('fullscreenchange', syncFullscreenState)
   document.removeEventListener('webkitfullscreenchange', syncFullscreenState)
 })
 
-// 收藏
-async function toggleFavorite(v) {
+// 点赞（乐观更新：先翻转状态，API 失败时回滚）
+async function toggleLike(v) {
   if (!userStore.isLoggedIn) {
     userStore.openAuth('login')
     return
   }
-
+  const wasLiked = v._liked
+  const prevCount = v.favorite_count || 0
+  v._liked = !wasLiked
+  v.favorite_count = wasLiked ? Math.max(0, prevCount - 1) : prevCount + 1
   try {
-    if (v._favorited) {
+    if (wasLiked) {
       await favoriteApi.remove(v.video_id)
-      v._favorited = false
-      v.favorite_count = Math.max(0, (v.favorite_count || 0) - 1)
     } else {
       await favoriteApi.add(v.video_id)
-      v._favorited = true
-      v.favorite_count = (v.favorite_count || 0) + 1
     }
-  } catch (err) {
-    // 可以在这里提示用户
+  } catch {
+    v._liked = wasLiked
+    v.favorite_count = prevCount
   }
 }
 
@@ -793,16 +1020,68 @@ function updateCommentCount(count) {
   if (item) item.comment_count = count
 }
 
-async function share(v) {
+async function openAuthorDrawer(v) {
+  if (!v.author_name) return
+  authorDrawer.value = { name: v.author_name, avatar: v.author_avatar, videos: [], videosLoading: true, videoCount: null }
+  try {
+    const res = await videoApi.list({ page: 1, page_size: 30, author_name: v.author_name })
+    const list = res.data?.videos || []
+    authorDrawer.value.videos = list
+    authorDrawer.value.videoCount = res.data?.total ?? list.length
+  } catch {}
+  authorDrawer.value.videosLoading = false
+}
+
+function goToAuthorVideo(v) {
+  const idx = videos.value.findIndex(item => !item._isAd && item.video_id === v.video_id)
+  const drawer = authorDrawer.value
+  if (drawer) {
+    feedBackStack.value.push(buildFeedFrameFromDrawer(drawer))
+  }
+  authorDrawer.value = null
+  if (idx >= 0) {
+    // 已在列表：瞬间定位，避免看到从中间视频一路滑过去。
+    if (container.value) container.value.scrollTop = idx * screenH.value
+    requestAnimationFrame(() => playAt(idx))
+    return
+  }
+  // 不在列表：用 router.replace 替换当前 URL（不开浏览器历史条目），watch 会触发原地重置 + 拉新视频。
+  // Feed 内的返回关系由 feedBackStack 管理，左上角先回作者抽屉/原视频，再回上一级页面。
+  router.replace({ path: '/feed', query: { author: v.author_name, id: v.video_id, order_by: orderBy } })
+}
+
+function openShare(v) {
+  shareVideo.value = v
+}
+
+async function doShareCopy() {
+  if (!shareVideo.value) return
+  const v = shareVideo.value
+  const url = `${location.origin}/feed?id=${v.video_id}&order_by=${orderBy}`
+  await navigator.clipboard.writeText(url).catch(() => {})
+  copyToast.value = true
+  setTimeout(() => { copyToast.value = false }, 2000)
+}
+
+function doShareNative() {
+  if (!shareVideo.value) return
+  const v = shareVideo.value
   const url = `${location.origin}/feed?id=${v.video_id}&order_by=${orderBy}`
   if (navigator.share) {
-    navigator.share({title: v.title, url}).catch(() => {
-    })
+    navigator.share({ title: v.title, url }).catch(() => {})
   } else {
-    await navigator.clipboard.writeText(url).catch(() => {
-    })
-    alert('链接已复制')
+    doShareCopy()
   }
+  shareVideo.value = null
+}
+
+function doShareWeibo() {
+  if (!shareVideo.value) return
+  const v = shareVideo.value
+  const url = encodeURIComponent(`${location.origin}/feed?id=${v.video_id}&order_by=${orderBy}`)
+  const title = encodeURIComponent(v.title || '')
+  window.open(`https://service.weibo.com/share/share.php?url=${url}&title=${title}`, '_blank')
+  shareVideo.value = null
 }
 </script>
 
@@ -829,6 +1108,110 @@ async function share(v) {
 
 .slide-up-enter-from, .slide-up-leave-to {
   transform: translateY(100%);
+}
+
+.feed-action-rail {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  width: 54px;
+}
+
+.feed-author-action {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 2px;
+  min-height: 58px;
+  position: relative;
+}
+
+.feed-avatar-btn {
+  border-radius: 999px;
+  display: block;
+  height: 46px;
+  width: 46px;
+}
+
+.feed-avatar {
+  align-items: center;
+  background: #fff;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.22);
+  color: #18c9d2;
+  display: flex;
+  font-size: 21px;
+  font-weight: 800;
+  height: 46px;
+  justify-content: center;
+  line-height: 1;
+  overflow: hidden;
+  text-transform: uppercase;
+  width: 46px;
+}
+
+.feed-follow-btn {
+  align-items: center;
+  background: #ff2b54;
+  border: 2px solid #ff2b54;
+  border-radius: 999px;
+  bottom: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.24);
+  display: flex;
+  height: 22px;
+  justify-content: center;
+  left: 50%;
+  position: absolute;
+  transform: translateX(-50%);
+  transition: transform 0.14s ease;
+  width: 22px;
+}
+
+.feed-follow-btn:active {
+  transform: translateX(-50%) scale(0.9);
+}
+
+.feed-action-btn {
+  align-items: center;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  line-height: 1;
+  min-height: 55px;
+  text-align: center;
+  width: 54px;
+}
+
+.feed-action-icon {
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.34));
+  height: 40px;
+  width: 40px;
+}
+
+.feed-heart-icon {
+  height: 42px;
+  width: 42px;
+}
+
+.feed-share-icon {
+  height: 42px;
+  width: 42px;
+}
+
+.feed-action-count {
+  color: #fff;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.7));
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 13px;
+  min-height: 13px;
+  max-width: 54px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .control-icon-btn {

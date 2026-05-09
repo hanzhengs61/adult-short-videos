@@ -1,5 +1,7 @@
 <template>
   <div
+    ref="cardRoot"
+    :data-feed-video-id="video.video_id"
     class="group block rounded-xl overflow-hidden bg-bg-card border border-border
            hover:border-primary/30 hover:shadow-card-hover transition-all duration-300
            hover:-translate-y-0.5 cursor-pointer select-none"
@@ -92,7 +94,7 @@
 
 <script setup>
 import { ref, nextTick } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import Hls from 'hls.js'
 
 const props = defineProps({
@@ -101,17 +103,28 @@ const props = defineProps({
   orderBy: { type: String, default: 'created_at' },
 })
 const router = useRouter()
+const route = useRoute()
 
 const previewing = ref(false)
+const cardRoot = ref(null)
 const previewEl = ref(null)
 const previewMuted = ref(true)
 
 let longPressTimer = null
 let longPressed = false
 let previewHls = null
+const HOME_FEED_RETURN_KEY = 'home_feed_return_anchor'
 
 function handleClick() {
   if (longPressed) { longPressed = false; return }
+  if (route.path === '/' && cardRoot.value) {
+    const rect = cardRoot.value.getBoundingClientRect()
+    sessionStorage.setItem(HOME_FEED_RETURN_KEY, JSON.stringify({
+      videoId: String(props.video.video_id),
+      top: rect.top,
+      ts: Date.now(),
+    }))
+  }
   router.push({ path: '/feed', query: { id: props.video.video_id, order_by: props.orderBy } })
 }
 

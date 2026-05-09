@@ -41,7 +41,7 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                       d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
               </svg>
-              {{ isFavorited ? '已收藏' : '收藏' }}
+              {{ isFavorited ? '已喜欢' : '喜欢' }}
             </button>
           </div>
 
@@ -153,7 +153,7 @@ async function fetchVideo() {
     video.value = res.data
     if (userStore.isLoggedIn) {
       const fav = await favoriteApi.check(videoId.value).catch(() => null)
-      isFavorited.value = fav?.data?.is_favorited || false
+      isFavorited.value = fav?.data?.is_favorite || false
     }
     const relRes = await videoApi.list({page: 1, page_size: 8, category: res.data?.category})
     related.value = (relRes.data?.list || []).filter(v => v.video_id !== videoId.value).slice(0, 6)

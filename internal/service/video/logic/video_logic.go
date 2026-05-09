@@ -38,6 +38,9 @@ func (s *VideoService) GetVideoList(ctx context.Context, req *dto.VideoListReq) 
 	if req.OrderBy != "" {
 		filters["order_by"] = req.OrderBy
 	}
+	if req.AuthorName != "" {
+		filters["author_name"] = req.AuthorName
+	}
 
 	offset := (req.Page - 1) * req.Size
 	videos, total, err := s.videoRepo.List(ctx, offset, req.Size, filters)

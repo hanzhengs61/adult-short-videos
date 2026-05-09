@@ -34,7 +34,7 @@
           <path stroke-linecap="round" stroke-linejoin="round"
                 d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
         </svg>
-        <p class="text-text-primary font-medium">登录后查看收藏</p>
+        <p class="text-text-primary font-medium">登录后查看喜欢</p>
         <button @click="userStore.openAuth('login')"
                 class="px-5 py-2 rounded-full bg-primary text-white text-sm hover:bg-primary/80 transition-colors">
           去登录
@@ -48,7 +48,7 @@
           <path stroke-linecap="round" stroke-linejoin="round"
                 d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
         </svg>
-        <p class="text-text-primary font-medium">还没有收藏</p>
+        <p class="text-text-primary font-medium">还没有喜欢的内容</p>
         <router-link to="/" class="text-primary text-sm hover:underline">去首页发现内容</router-link>
       </div>
     </div>
@@ -63,7 +63,7 @@ import { useInfiniteScroll } from '@/composables/useInfiniteScroll'
 import { favoriteApi } from '@/api'
 import { useUserStore } from '@/stores/user'
 
-useHead({ title: '我的收藏 - mitun69' })
+useHead({ title: '我的喜欢 - mitun69' })
 
 const userStore = useUserStore()
 const videos = ref([])

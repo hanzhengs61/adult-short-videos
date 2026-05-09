@@ -74,13 +74,22 @@ func (r *videoRepository) List(ctx context.Context, offset, limit int, filters m
 		}
 	}
 
-	var videos []*model.VideoWithAuthor
-	err := r.db.WithContext(ctx).
+	query := r.db.WithContext(ctx).
 		Table("videos v").
 		Select(authorSelect).
 		Joins(authorJoin).
-		Where("v.status = 1").
-		Order(orderCol + " DESC").
+		Where("v.status = 1")
+
+	// 按作者名过滤时同步收窄 total 计数
+	if authorName, ok := filters["author_name"].(string); ok && authorName != "" {
+		query = query.Where("u.username = ?", authorName)
+		if err := query.Session(&gorm.Session{}).Count(&total).Error; err != nil {
+			return nil, 0, err
+		}
+	}
+
+	var videos []*model.VideoWithAuthor
+	err := query.Order(orderCol + " DESC").
 		Offset(offset).
 		Limit(limit).
 		Scan(&videos).Error

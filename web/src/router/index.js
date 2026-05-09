@@ -16,7 +16,22 @@ const routes = [
 const router = createRouter({
     history: createWebHistory(),
     routes,
-    scrollBehavior: () => ({top: 0}),
+    // savedPosition 在浏览器后退/前进时由浏览器提供，直接还原；新导航滚顶
+    scrollBehavior: (to, from, savedPosition) => {
+        if (savedPosition) {
+            // 全局 CSS 开了 smooth scroll，浏览器后退恢复滚动时需要临时禁用，
+            // 否则会从顶部快速滑到原位置，看起来像 Feed 返回时在“刷视频”。
+            const html = document.documentElement
+            const prevScrollBehavior = html.style.scrollBehavior
+            html.style.scrollBehavior = 'auto'
+            window.scrollTo(savedPosition.left ?? 0, savedPosition.top ?? 0)
+            requestAnimationFrame(() => {
+                html.style.scrollBehavior = prevScrollBehavior
+            })
+            return false
+        }
+        return {top: 0}
+    },
 })
 
 export default router

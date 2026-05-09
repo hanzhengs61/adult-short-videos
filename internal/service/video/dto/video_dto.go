@@ -37,9 +37,10 @@ type VideoDetail struct {
 
 // VideoListReq 视频列表请求
 type VideoListReq struct {
-	Page    int    `form:"page"`
-	Size    int    `form:"page_size"`
-	OrderBy string `form:"order_by"` // created_at, play_count, comment_count, favorite_count
+	Page       int    `form:"page"`
+	Size       int    `form:"page_size"`
+	OrderBy    string `form:"order_by"`    // created_at, play_count, comment_count, favorite_count
+	AuthorName string `form:"author_name"` // 按作者用户名过滤
 }
 
 // VideoListResp 视频列表响应
