@@ -2,7 +2,7 @@
   <div ref="feedRoot" class="relative bg-black" style="height:100vh;overflow:hidden">
 
     <!-- 滚动容器 -->
-    <div ref="container" class="w-full h-full overflow-y-scroll snap-y snap-mandatory"
+    <div ref="container" class="w-full h-full overflow-y-scroll snap-y snap-mandatory no-scrollbar"
          style="-webkit-overflow-scrolling:touch"
          @scroll.passive="onContainerScroll">
 
@@ -427,7 +427,8 @@ const canNativeShare = typeof navigator !== 'undefined' && !!navigator.share
 const loading = ref(false)
 const page = ref(1)
 const hasMore = ref(true)
-const screenH = ref(window.innerHeight)
+// visualViewport.height 排除了 iOS Safari 动态地址栏，避免 snap 位置错位
+const screenH = ref(window.visualViewport?.height ?? window.innerHeight)
 const startIdRaw = route.query.id == null ? '' : String(route.query.id)
 const sentinel = ref(null)
 const cleanMode = ref(false)
@@ -493,6 +494,7 @@ const authorFilter = ref(route.query.author ? String(route.query.author) : '')
 const keywordFilter = ref(route.query.q ? String(route.query.q) : '')
 const PAGE_SIZE = 20
 const AD_EVERY = 4
+const PREFETCH_SLIDES = 8
 // idx -> { current: number, duration: number }
 const videoTimes = reactive({})
 
@@ -730,6 +732,7 @@ function observeItems() {
       const safeExpectedIdx = Math.min(Math.max(0, expectedIdx), maxIdx)
       if (idx !== safeExpectedIdx) return
 
+      maybePrefetchFromIndex(idx)
       playAt(idx)
     }, {threshold: 0.6, root: container.value})
     io.observe(el)
@@ -748,6 +751,9 @@ function checkLike(v) {
 async function fetchMore() {
   if (loading.value || !hasMore.value) return
   loading.value = true
+  // 记录发出请求时的页码：若 hydrateFeedAfterTarget 在等待期间更新了列表，
+  // page.value 会被改变，此时本次结果已过期，直接丢弃避免错误设置 hasMore=false
+  const pageSnapshot = page.value
   try {
     const params = {page: page.value, page_size: PAGE_SIZE, order_by: orderBy}
     // 关键词模式走搜索接口，否则走列表接口
@@ -759,6 +765,13 @@ async function fetchMore() {
       res = await videoApi.list(params)
     }
     const rawList = res.data?.videos || []
+
+    // hydrateFeedAfterTarget 并发修改了 page.value，说明列表已被重建，本次结果过期
+    if (page.value !== pageSnapshot) {
+      loading.value = false
+      return
+    }
+
     // 过滤时跳过广告项，防止广告 ID 干扰去重逻辑
     const list = rawList
         .filter(v => !videos.value.some(e => !e._isAd && e.video_id === v.video_id))
@@ -793,7 +806,17 @@ async function fetchMore() {
 }
 
 const onResize = () => {
-  screenH.value = window.innerHeight
+  screenH.value = window.visualViewport?.height ?? window.innerHeight
+}
+
+function getCurrentScrollIdx() {
+  if (!container.value || !screenH.value) return 0
+  return Math.max(0, Math.round(container.value.scrollTop / screenH.value))
+}
+
+function maybePrefetchFromIndex(idx = getCurrentScrollIdx()) {
+  if (loading.value || !hasMore.value) return
+  if (videos.value.length - idx <= PREFETCH_SLIDES) fetchMore()
 }
 
 function toggleContinuousPlay() {
@@ -846,12 +869,14 @@ function goBack() {
   }
 }
 
-// 触底加载：用户滚动到距离底部 1.5 屏内时触发 fetchMore
+// 接近尾部加载：优先按 slide 索引预取，距离底部判断作为兜底
 // loading/!hasMore 时 fetchMore 自身会立即 return，无需在此判断
 function onContainerScroll() {
   const el = container.value
   if (!el) return
-  if (el.scrollHeight - el.scrollTop - el.clientHeight < screenH.value * 1.5) fetchMore()
+  maybePrefetchFromIndex()
+  // 距底部 5 屏时提前加载，确保数据在用户到达最后一个 snap 点前已就绪
+  if (el.scrollHeight - el.scrollTop - el.clientHeight < screenH.value * 5) fetchMore()
 }
 
 async function loadInitialFeed() {
@@ -1067,6 +1092,7 @@ onMounted(async () => {
   }
 
   window.addEventListener('resize', onResize)
+  window.visualViewport?.addEventListener('resize', onResize)
   document.addEventListener('fullscreenchange', syncFullscreenState)
   document.addEventListener('webkitfullscreenchange', syncFullscreenState)
 })
@@ -1095,6 +1121,7 @@ onUnmounted(() => {
   Object.values(hlsMap).forEach(h => h.destroy())
   itemObservers.forEach(o => o.disconnect())
   window.removeEventListener('resize', onResize)
+  window.visualViewport?.removeEventListener('resize', onResize)
   document.removeEventListener('fullscreenchange', syncFullscreenState)
   document.removeEventListener('webkitfullscreenchange', syncFullscreenState)
 })
