@@ -69,9 +69,9 @@
           <div class="feed-author-action">
             <button class="feed-avatar-btn" type="button" @click.stop="openAuthorDrawer(v)">
               <div class="feed-avatar">
-                <img v-if="v.author_avatar" :src="v.author_avatar" :alt="v.author_name"
-                     class="w-full h-full object-cover" @error="e => e.target.style.display='none'"/>
-                <span v-if="!v.author_avatar && v.author_name">{{ v.author_name[0]?.toUpperCase() }}</span>
+                <img :src="v.author_avatar || '/logo.png'" :alt="v.author_name"
+                     class="w-full h-full object-cover"
+                     @error="e => e.target.src='/logo.png'"/>
               </div>
             </button>
             <button v-if="v.author_name && !followedAuthors.has(v.author_name) && v.author_name !== userStore.userInfo?.username"
@@ -288,10 +288,10 @@
           </div>
           <!-- 用户信息头部 -->
           <div class="flex items-center gap-3 px-4 py-3 shrink-0">
-            <div class="w-14 h-14 rounded-full overflow-hidden border-2 border-white/20 bg-white/10 flex items-center justify-center text-xl font-bold text-white shrink-0">
-              <img v-if="authorDrawer.avatar" :src="authorDrawer.avatar"
-                   class="w-full h-full object-cover" @error="e => e.target.style.display='none'"/>
-              <span v-if="!authorDrawer.avatar">{{ authorDrawer.name?.[0] }}</span>
+            <div class="w-14 h-14 rounded-full overflow-hidden border-2 border-white/25 flex items-center justify-center text-xl font-bold text-white shrink-0" style="background:#1a1a1a">
+              <img :src="authorDrawer.avatar || '/logo.png'"
+                   class="w-full h-full object-cover"
+                   @error="e => e.target.src='/logo.png'"/>
             </div>
             <div class="flex-1 min-w-0">
               <p class="text-text-primary font-bold text-lg truncate">@{{ authorDrawer.name }}</p>
@@ -308,7 +308,7 @@
             </button>
           </div>
           <!-- 视频网格 -->
-          <div class="flex-1 overflow-y-auto px-3 pb-5">
+          <div class="flex-1 overflow-y-auto px-3 pb-5" @scroll.passive="onAuthorDrawerScroll">
             <div v-if="authorDrawer.videosLoading" class="grid grid-cols-3 gap-1.5 pt-1">
               <div v-for="i in 6" :key="i" class="aspect-[9/16] rounded-lg bg-white/5 animate-pulse"></div>
             </div>
@@ -322,6 +322,10 @@
                   {{ fmtN(v.play_count) }}
                 </div>
               </button>
+              <!-- 加载更多指示器 -->
+              <div v-if="authorDrawer.loadingMore" class="col-span-3 flex justify-center py-3">
+                <div class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"/>
+              </div>
             </div>
             <p v-else class="text-center py-8 text-text-muted text-sm">暂无视频</p>
           </div>
@@ -525,6 +529,7 @@ const authorFilter = ref(route.query.author ? String(route.query.author) : '')
 // 搜索关键词模式：从搜索结果点进来时有值，后续加载都按此关键词过滤
 const keywordFilter = ref(route.query.q ? String(route.query.q) : '')
 const PAGE_SIZE = 20
+const PAGE_SIZE_AUTHOR = 30
 const AD_EVERY = 4
 const PREFETCH_SLIDES = 8
 // idx -> { current: number, duration: number }
@@ -1203,14 +1208,38 @@ function updateCommentCount(count) {
 
 async function openAuthorDrawer(v) {
   if (!v.author_name) return
-  authorDrawer.value = { name: v.author_name, avatar: v.author_avatar, videos: [], videosLoading: true, videoCount: null }
+  authorDrawer.value = {
+    name: v.author_name, avatar: v.author_avatar,
+    videos: [], videosLoading: true, videoCount: null,
+    page: 2, hasMore: true, loadingMore: false,
+  }
   try {
-    const res = await videoApi.list({ page: 1, page_size: 30, author_name: v.author_name })
+    const res = await videoApi.list({ page: 1, page_size: PAGE_SIZE_AUTHOR, author_name: v.author_name })
     const list = res.data?.videos || []
     authorDrawer.value.videos = list
     authorDrawer.value.videoCount = res.data?.total ?? list.length
+    authorDrawer.value.hasMore = list.length >= PAGE_SIZE_AUTHOR
   } catch {}
   authorDrawer.value.videosLoading = false
+}
+
+async function loadMoreAuthorVideos() {
+  const drawer = authorDrawer.value
+  if (!drawer || drawer.loadingMore || !drawer.hasMore || drawer.videosLoading) return
+  drawer.loadingMore = true
+  try {
+    const res = await videoApi.list({ page: drawer.page, page_size: PAGE_SIZE_AUTHOR, author_name: drawer.name })
+    const list = res.data?.videos || []
+    drawer.videos.push(...list)
+    drawer.page++
+    if (list.length < PAGE_SIZE_AUTHOR) drawer.hasMore = false
+  } catch {}
+  drawer.loadingMore = false
+}
+
+function onAuthorDrawerScroll(e) {
+  const el = e.currentTarget
+  if (el.scrollHeight - el.scrollTop - el.clientHeight < 200) loadMoreAuthorVideos()
 }
 
 function goToAuthorVideo(v) {
@@ -1317,8 +1346,8 @@ function doShareWeibo() {
 
 .feed-avatar {
   align-items: center;
-  background: #fff;
-  border: 2px solid #fff;
+  background: #1a1a1a;
+  border: 2px solid rgba(255,255,255,0.25);
   border-radius: 999px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.22);
   color: #18c9d2;
