@@ -1,6 +1,10 @@
 package data
 
 import (
+	"bufio"
+	"fmt"
+	"os"
+	"strings"
 	"time"
 
 	"adult-short-videos/internal/config"
@@ -10,6 +14,7 @@ import (
 	followModel "adult-short-videos/internal/service/follow/model"
 	gossipModel "adult-short-videos/internal/service/gossip/model"
 	playModel "adult-short-videos/internal/service/play/model"
+	tagModel "adult-short-videos/internal/service/tag/model"
 	userModel "adult-short-videos/internal/service/user/model"
 	videoModel "adult-short-videos/internal/service/video/model"
 
@@ -60,7 +65,7 @@ func Migrate(db *gorm.DB) error {
 		Logger: db.Logger.LogMode(gormLogger.Silent),
 	})
 
-	return session.AutoMigrate(
+	if err := session.AutoMigrate(
 		&userModel.User{},
 		&userModel.UserStatistics{},
 		&userModel.LoginLog{},
@@ -72,5 +77,33 @@ func Migrate(db *gorm.DB) error {
 		&commentModel.CommentLike{},
 		&followModel.AuthorFollow{},
 		&gossipModel.GossipPost{},
-	)
+		&tagModel.Tag{},
+	); err != nil {
+		return err
+	}
+
+	return seedTags(session)
+}
+
+// seedTags 从 seed_tags.txt 读取标签写入数据库，已存在的跳过（幂等）
+func seedTags(db *gorm.DB) error {
+	// seed_tags.txt 与本文件同目录，每行一个标签
+	f, err := os.Open("internal/data/seed_tags.txt")
+	if err != nil {
+		return fmt.Errorf("打开 seed_tags.txt 失败: %w", err)
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		name := strings.TrimSpace(scanner.Text())
+		if name == "" {
+			continue
+		}
+		tag := tagModel.Tag{Name: name, Status: 1}
+		if err := db.Where(tagModel.Tag{Name: name}).FirstOrCreate(&tag).Error; err != nil {
+			return err
+		}
+	}
+	return scanner.Err()
 }

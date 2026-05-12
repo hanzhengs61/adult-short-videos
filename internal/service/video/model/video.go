@@ -10,6 +10,9 @@ type Video struct {
 	Duration int32  `gorm:"default:0;comment:时长（秒）" json:"duration"`
 	RemoteId string `gorm:"type:varchar(100);uniqueIndex;default:'';comment:外站唯一 ID，用于去重" json:"remote_id"`
 
+	// 从标题提取的标签列表，JSON 序列化存储，如 ["美女","日常"]
+	Tags []string `gorm:"type:text;serializer:json;comment:从标题提取的标签" json:"tags"`
+
 	// ========== 冷热分离 ==========
 	StorageType string `gorm:"type:varchar(10);default:'cold';comment:cold/hot" json:"storage_type"`
 	SourceURL   string `gorm:"type:varchar(500);comment:源站 URL（冷数据）" json:"source_url"`

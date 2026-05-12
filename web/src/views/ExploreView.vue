@@ -42,9 +42,14 @@
         <div class="flex gap-3 items-start mb-6">
           <div v-for="(col, colIdx) in searchResultColumns" :key="`result-col-${colIdx}`" class="flex-1 space-y-3">
             <div v-for="v in col" :key="v.video_id">
-              <VideoCard :video="v" :order-by="searchSort"/>
+              <VideoCard :video="v" :order-by="searchSort" :keyword="currentQuery"/>
             </div>
           </div>
+        </div>
+        <!-- 底部加载更多 -->
+        <div ref="searchSentinel" class="flex justify-center py-6">
+          <div v-if="searchLoadingMore" class="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin"/>
+          <p v-else-if="!searchHasMore" class="text-text-muted text-sm">已加载全部结果</p>
         </div>
       </template>
 
@@ -206,7 +211,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useHead } from '@vueuse/head'
 import VideoCard from '@/components/common/VideoCard.vue'
@@ -222,9 +227,17 @@ const currentQuery = ref('')
 const searchResults = ref([])
 const searchSort = ref('created_at')
 const searching = ref(false)
+const searchLoadingMore = ref(false)
+const searchHasMore = ref(false)
+const searchPage = ref(1)
+const searchSentinel = ref(null)
 const actors = ref([])
 const actorsLoading = ref(true)
 const columnCount = ref(2)
+const PAGE_SIZE = 20
+// 每次搜索递增，用于丢弃过期响应，防止竞态覆盖
+let searchToken = 0
+let searchSentinelOb = null
 
 useHead(computed(() => ({
   title: currentQuery.value
@@ -266,28 +279,68 @@ function syncColumnCount() {
   else columnCount.value = 2
 }
 
-// 搜索
+// 搜索（首次或关键词/排序变化时调用，重置分页）
 async function doSearch(keyword) {
   const q = (keyword ?? searchInput.value).trim()
   if (!q) return
+  const token = ++searchToken
   currentQuery.value = q
   searchInput.value = q
   searchResults.value = []
+  searchPage.value = 1
+  searchHasMore.value = false
   searching.value = true
   exploreStore.addHistory(q)
   try {
     const res = await searchApi.videos({
       keyword: q,
       page: 1,
-      page_size: 10,
+      page_size: PAGE_SIZE,
       order_by: searchSort.value,
     })
-    searchResults.value = res.data?.videos || []
+    if (token !== searchToken) return
+    const list = res.data?.videos || []
+    searchResults.value = list
+    searchPage.value = 2
+    searchHasMore.value = list.length >= PAGE_SIZE
   } catch {
+    if (token !== searchToken) return
     searchResults.value = []
   } finally {
-    searching.value = false
+    if (token === searchToken) searching.value = false
   }
+  await nextTick()
+  observeSearchSentinel()
+}
+
+// 加载更多搜索结果（下滑触底时调用）
+async function loadMoreSearch() {
+  if (searchLoadingMore.value || !searchHasMore.value || !currentQuery.value) return
+  const token = searchToken
+  searchLoadingMore.value = true
+  try {
+    const res = await searchApi.videos({
+      keyword: currentQuery.value,
+      page: searchPage.value,
+      page_size: PAGE_SIZE,
+      order_by: searchSort.value,
+    })
+    if (token !== searchToken) return
+    const list = res.data?.videos || []
+    searchResults.value.push(...list)
+    searchPage.value++
+    searchHasMore.value = list.length >= PAGE_SIZE
+  } catch {}
+  if (token === searchToken) searchLoadingMore.value = false
+}
+
+function observeSearchSentinel() {
+  if (searchSentinelOb) { searchSentinelOb.disconnect(); searchSentinelOb = null }
+  if (!searchSentinel.value) return
+  searchSentinelOb = new IntersectionObserver(([entry]) => {
+    if (entry.isIntersecting) loadMoreSearch()
+  }, { threshold: 0.1 })
+  searchSentinelOb.observe(searchSentinel.value)
 }
 
 // 快速搜索
@@ -307,6 +360,8 @@ function clearSearch() {
   searchInput.value = ''
   currentQuery.value = ''
   searchResults.value = []
+  searchHasMore.value = false
+  if (searchSentinelOb) { searchSentinelOb.disconnect(); searchSentinelOb = null }
   router.replace({path: '/explore', query: {}})
 }
 
@@ -346,5 +401,6 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('resize', syncColumnCount)
+  if (searchSentinelOb) searchSentinelOb.disconnect()
 })
 </script>

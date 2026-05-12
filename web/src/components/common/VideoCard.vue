@@ -99,8 +99,10 @@ import Hls from 'hls.js'
 
 const props = defineProps({
   video: { type: Object, required: true },
-  // 用于把当前列表排序传到播放页，保证“点哪个视频进去就按哪个顺序播放+继续加载”
+  // 用于把当前列表排序传到播放页，保证”点哪个视频进去就按哪个顺序播放+继续加载”
   orderBy: { type: String, default: 'created_at' },
+  // 搜索关键词，有值时 Feed 将继续按关键词过滤加载
+  keyword: { type: String, default: '' },
 })
 const router = useRouter()
 const route = useRoute()
@@ -125,7 +127,9 @@ function handleClick() {
       ts: Date.now(),
     }))
   }
-  router.push({ path: '/feed', query: { id: props.video.video_id, order_by: props.orderBy } })
+  const query = { id: props.video.video_id, order_by: props.orderBy }
+  if (props.keyword) query.q = props.keyword
+  router.push({ path: '/feed', query })
 }
 
 function onTouchStart() {

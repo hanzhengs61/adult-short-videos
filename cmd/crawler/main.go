@@ -2,6 +2,8 @@ package main
 
 import (
 	"adult-short-videos/internal/config"
+	tagModel "adult-short-videos/internal/service/tag/model"
+	tagRepo "adult-short-videos/internal/service/tag/repository"
 	userModel "adult-short-videos/internal/service/user/model"
 	videoModel "adult-short-videos/internal/service/video/model"
 	"bufio"
@@ -49,6 +51,14 @@ func main() {
 	selectedUser := selectUser(db)
 	log.Printf("已选择用户: %s (ID: %d)，开始采集", selectedUser.Username, selectedUser.UserId)
 
+	// 启动时加载标签库，整个采集过程复用，避免每条视频都查 DB
+	tagRepository := tagRepo.NewTagRepository(db)
+	tags, err := tagRepository.GetAllActive()
+	if err != nil {
+		log.Fatalf("加载标签库失败: %v", err)
+	}
+	log.Printf("已加载 %d 个标签", len(tags))
+
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 	client := &http.Client{Timeout: 30 * time.Second}
 
@@ -66,7 +76,7 @@ func main() {
 			continue
 		}
 
-		inserted := parseAndUpsert(db, client, htmlStr, selectedUser)
+		inserted := parseAndUpsert(db, client, htmlStr, selectedUser, tags)
 		log.Printf("第 %d 页: 写入 %d 条", page, inserted)
 		totalInserted += inserted
 
@@ -187,7 +197,7 @@ func selectUser(db *gorm.DB) userModel.User {
 }
 
 // parseAndUpsert 解析 HTML 片段，upsert 到 DB，返回实际写入数量
-func parseAndUpsert(db *gorm.DB, client *http.Client, htmlStr string, selectedUser userModel.User) int {
+func parseAndUpsert(db *gorm.DB, client *http.Client, htmlStr string, selectedUser userModel.User, tags []tagModel.Tag) int {
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(htmlStr))
 	if err != nil {
 		log.Printf("goquery parse error: %v", err)
@@ -228,13 +238,14 @@ func parseAndUpsert(db *gorm.DB, client *http.Client, htmlStr string, selectedUs
 			Status:      1,
 			RemoteId:    remoteID,
 			PublishedAt: time.Now(),
+			Tags:        tagRepo.MatchTags(tags, title),
 		}
 
 		result := db.Clauses(clause.OnConflict{
 			Columns: []clause.Column{{Name: "remote_id"}},
 			DoUpdates: clause.AssignmentColumns([]string{
 				"title", "cover_url", "source_url", "play_count",
-				"duration", "is_portrait", "user_id",
+				"duration", "is_portrait", "user_id", "tags",
 			}),
 		}).Create(&v)
 

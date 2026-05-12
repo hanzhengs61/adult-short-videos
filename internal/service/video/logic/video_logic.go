@@ -54,6 +54,10 @@ func (s *VideoService) GetVideoList(ctx context.Context, req *dto.VideoListReq) 
 
 	items := make([]dto.VideoItem, 0, len(videos))
 	for _, v := range videos {
+		tags := v.Tags
+		if tags == nil {
+			tags = []string{}
+		}
 		items = append(items, dto.VideoItem{
 			VideoId:       v.VideoId,
 			Title:         v.Title,
@@ -68,6 +72,7 @@ func (s *VideoService) GetVideoList(ctx context.Context, req *dto.VideoListReq) 
 			FavoriteCount: v.FavoriteCount,
 			CommentCount:  v.CommentCount,
 			PublishedAt:   v.PublishedAt.Unix(),
+			Tags:          tags,
 		})
 	}
 
@@ -97,6 +102,11 @@ func (s *VideoService) GetVideoDetail(ctx context.Context, videoId int64) (*dto.
 		_ = s.videoRepo.IncrementPlayCount(context.Background(), videoId)
 	}()
 
+	tags := video.Tags
+	if tags == nil {
+		tags = []string{}
+	}
+
 	return &dto.VideoDetail{
 		VideoId:       video.VideoId,
 		Title:         video.Title,
@@ -112,6 +122,7 @@ func (s *VideoService) GetVideoDetail(ctx context.Context, videoId int64) (*dto.
 		FavoriteCount: video.FavoriteCount,
 		CommentCount:  video.CommentCount,
 		PublishedAt:   video.PublishedAt.Unix(),
+		Tags:          tags,
 	}, nil
 }
 
@@ -125,6 +136,10 @@ func (s *VideoService) GetHotVideos(ctx context.Context, limit int) ([]dto.Video
 
 	items := make([]dto.VideoItem, 0, len(videos))
 	for _, v := range videos {
+		tags := v.Tags
+		if tags == nil {
+			tags = []string{}
+		}
 		items = append(items, dto.VideoItem{
 			VideoId:       v.VideoId,
 			Title:         v.Title,
@@ -139,6 +154,7 @@ func (s *VideoService) GetHotVideos(ctx context.Context, limit int) ([]dto.Video
 			FavoriteCount: v.FavoriteCount,
 			CommentCount:  v.CommentCount,
 			PublishedAt:   v.PublishedAt.Unix(),
+			Tags:          tags,
 		})
 	}
 	return items, nil

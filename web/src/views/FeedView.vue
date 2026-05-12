@@ -119,10 +119,11 @@
           <!-- 文案（3 行省略，不展开） -->
           <p class="text-white text-sm leading-snug drop-shadow line-clamp-3 mb-2">{{ v.title }}</p>
           <!-- 标签行，点击跳转搜索 -->
-          <div v-if="getTags(v).length" class="flex flex-wrap gap-1.5 mb-1.5">
+          <div v-if="getTags(v).length" class="flex gap-1.5 mb-1.5 overflow-x-auto no-scrollbar">
             <button v-for="tag in getTags(v)" :key="tag"
                     @click.stop="goTag(tag)"
-                    class="text-white text-[13px] font-medium active:opacity-60 transition-opacity">
+                    class="text-white text-[14px] font-medium active:opacity-60 transition-opacity
+                             shrink-0 px-2 py-0.5 rounded-full border border-white/35 bg-white/10 backdrop-blur-sm">
               #{{ tag.replace(/^#/, '') }}
             </button>
           </div>
@@ -398,7 +399,7 @@
 import {nextTick, onMounted, onUnmounted, reactive, ref, watch} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import Hls from 'hls.js'
-import { videoApi, favoriteApi, playApi, followApi } from '@/api'
+import { videoApi, searchApi, favoriteApi, playApi, followApi } from '@/api'
 import { useUserStore } from '@/stores/user'
 import CommentSection from '@/components/common/CommentSection.vue'
 
@@ -488,6 +489,8 @@ const orderByRaw = route.query.order_by == null ? '' : String(route.query.order_
 const orderBy = orderByAllowed.includes(orderByRaw) ? orderByRaw : 'created_at'
 // 作者过滤模式：仅加载该作者视频。改为 ref 以便抽屉切换时动态生效。
 const authorFilter = ref(route.query.author ? String(route.query.author) : '')
+// 搜索关键词模式：从搜索结果点进来时有值，后续加载都按此关键词过滤
+const keywordFilter = ref(route.query.q ? String(route.query.q) : '')
 const PAGE_SIZE = 20
 const AD_EVERY = 4
 // idx -> { current: number, duration: number }
@@ -500,6 +503,7 @@ const hlsReady = new Set()
 // 待播放的 idx（等 MANIFEST_PARSED 后播放）
 let pendingPlay = -1
 let restoringFeedFrame = false
+let hydrateToken = 0
 
 // 已移除 sentinel IntersectionObserver：初始化时 sentinel 紧贴视口
 // 容易导致死循环触发 fetchMore，改用 onContainerScroll 监听滚动到底加载
@@ -746,8 +750,14 @@ async function fetchMore() {
   loading.value = true
   try {
     const params = {page: page.value, page_size: PAGE_SIZE, order_by: orderBy}
-    if (authorFilter.value) params.author_name = authorFilter.value
-    const res = await videoApi.list(params)
+    // 关键词模式走搜索接口，否则走列表接口
+    let res
+    if (keywordFilter.value) {
+      res = await searchApi.videos({...params, keyword: keywordFilter.value})
+    } else {
+      if (authorFilter.value) params.author_name = authorFilter.value
+      res = await videoApi.list(params)
+    }
     const rawList = res.data?.videos || []
     // 过滤时跳过广告项，防止广告 ID 干扰去重逻辑
     const list = rawList
@@ -854,6 +864,7 @@ async function loadInitialFeed() {
 // 重置 FeedView 内部状态：用于"原地切换"到新起点视频（抽屉跳转、URL query 切换）
 // 不修改 authorFilter，由调用方按需在调用前设置
 function resetFeedState() {
+  hydrateToken++  // 取消正在进行的 hydrateFeedAfterTarget
   stopAll()
   Object.values(hlsMap).forEach(h => { try { h.destroy() } catch {} })
   for (const k of Object.keys(hlsMap)) delete hlsMap[k]
@@ -934,11 +945,98 @@ async function restoreFeedFrame(frame) {
   }
 }
 
+// 每 AD_EVERY 条真实视频后插入一个广告 slide（目标视频之后的续集用）
+function withAdsAfterTarget(list) {
+  const result = []
+  list.forEach((v, i) => {
+    result.push(v)
+    if ((i + 1) % AD_EVERY === 0) {
+      result.push({ _isAd: true, video_id: `_ad_after_target_${i + 1}` })
+    }
+  })
+  return result
+}
+
+// 后台搜索目标视频在列表里的真实位置，找到后把目标之后的视频按顺序拼到 Feed。
+// 用 token 机制保证只有最新一次 loadFromVideoId 的 hydration 生效。
+async function hydrateFeedAfterTarget(targetId, token) {
+  const collected = []
+  const maxSearchPages = 50
+  let foundIdx = -1
+  let searchPage = 1
+  let lastRawLen = PAGE_SIZE
+
+  while (token === hydrateToken && searchPage <= maxSearchPages && foundIdx < 0) {
+    let rawList = []
+    try {
+      const params = { page: searchPage, page_size: PAGE_SIZE, order_by: orderBy }
+      let res
+      if (keywordFilter.value) {
+        res = await searchApi.videos({ ...params, keyword: keywordFilter.value })
+      } else {
+        if (authorFilter.value) params.author_name = authorFilter.value
+        res = await videoApi.list(params)
+      }
+      rawList = res.data?.videos || []
+    } catch {
+      return
+    }
+
+    lastRawLen = rawList.length
+    for (const item of rawList) {
+      if (!collected.some(v => v.video_id === item.video_id)) {
+        collected.push({ ...item, _liked: false })
+      }
+    }
+    foundIdx = collected.findIndex(v => String(v.video_id) === String(targetId))
+    if (rawList.length < PAGE_SIZE) break
+    searchPage++
+  }
+
+  // token 过期（用户已切视频）或找不到目标：回退到普通加载
+  if (token !== hydrateToken || foundIdx < 0) {
+    if (token === hydrateToken) fetchMore()
+    return
+  }
+
+  const target = videos.value.find(v => !v._isAd && String(v.video_id) === String(targetId)) || collected[foundIdx]
+  const afterTarget = collected
+    .slice(foundIdx + 1)
+    .filter(v => String(v.video_id) !== String(targetId))
+    .map(v => ({ ...v, _liked: v._liked ?? false }))
+
+  // 记住用户当前所在视频，替换列表后尽量还原位置，避免被拉回顶部
+  const curIdx = container.value ? Math.round(container.value.scrollTop / screenH.value) : 0
+  const curVideoId = (videos.value[curIdx] && !videos.value[curIdx]._isAd)
+    ? String(videos.value[curIdx].video_id)
+    : null
+
+  videos.value = [target, ...withAdsAfterTarget(afterTarget)]
+  page.value = searchPage + 1
+  hasMore.value = lastRawLen >= PAGE_SIZE
+  await checkFollowStatus(afterTarget.map(v => v.author_name))
+  await nextTick()
+
+  if (curIdx === 0) {
+    // 用户还在目标视频，保持顶部
+    if (container.value) container.value.scrollTop = 0
+  } else if (curVideoId) {
+    // 用户已下滑：找到当前视频在新列表里的位置
+    const newIdx = videos.value.findIndex(v => !v._isAd && String(v.video_id) === curVideoId)
+    if (container.value) {
+      // 找到则跳到新位置；找不到（该视频在 target 之前，不在新列表里）则保持像素位置
+      container.value.scrollTop = (newIdx >= 0 ? newIdx : curIdx) * screenH.value
+    }
+  }
+  observeItems()
+}
+
 // 以单个视频为起点初始化 Feed：
-//   1) 一次 detail API 拿到目标视频，立刻作为 position 0 显示并播放（不论第几条都瞬间到位）
-//   2) 后台并发拉常规列表，去重追加到目标后面
+//   1) 一次 detail API 拿到目标视频，立刻作为 position 0 显示并播放
+//   2) 后台搜索目标在列表里的真实位置，拼接目标之后的视频（保证顺序正确）
 //   3) 拉不到目标时回退到普通流
 async function loadFromVideoId(targetId) {
+  const token = ++hydrateToken
   let target = null
   try {
     const res = await videoApi.detail(targetId)
@@ -957,8 +1055,8 @@ async function loadFromVideoId(targetId) {
   if (container.value) container.value.scrollTop = 0
   observeItems()
   playAt(0)
-  // 后台拉后续视频，不阻塞首屏
-  fetchMore()
+  // 后台找到目标的真实排序位置，把目标之后的视频按顺序续上
+  hydrateFeedAfterTarget(targetId, token)
 }
 
 onMounted(async () => {
@@ -1315,6 +1413,14 @@ function doShareWeibo() {
   border: 0;
   height: 18px;
   width: 18px;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
 </style>
