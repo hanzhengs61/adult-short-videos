@@ -20,7 +20,10 @@
                 <p class="text-white font-bold text-2xl mb-3">广告位</p>
                 <p class="text-white/40 text-base">mitun69 · 招商合作</p>
               </div>
-              <p class="text-white/25 text-sm">↑ 滑动继续 ↑</p>
+              <p v-if="adSkipIdxRef === idx && adSkipCountdown >= 0" class="text-white/40 text-sm">
+                {{ adSkipCountdown }}s 后自动跳过
+              </p>
+              <p v-else class="text-white/25 text-sm">↑ 滑动继续 ↑</p>
             </div>
           </div>
           <div class="absolute top-4 left-3 z-10 px-2 py-0.5 rounded bg-black/50 text-white/40 text-xs">广告</div>
@@ -447,6 +450,35 @@ const playStates = reactive({})
 const followedAuthors = reactive(new Set())
 const checkedLikeIds = new Set()
 
+// 广告自动跳过：连播模式下倒计时 N 秒后滚到下一 slide
+const AD_SKIP_SECONDS = 5
+const adSkipCountdown = ref(-1)  // -1 表示未激活；≥0 表示剩余秒数
+const adSkipIdxRef = ref(-1)     // 正在倒计时的广告 idx
+let adSkipInterval = null
+
+function clearAdCountdown() {
+  if (adSkipInterval) { clearInterval(adSkipInterval); adSkipInterval = null }
+  adSkipCountdown.value = -1
+  adSkipIdxRef.value = -1
+}
+
+async function startAdCountdown(idx) {
+  clearAdCountdown()
+  if (!continuousPlay.value) return
+  adSkipIdxRef.value = idx
+  adSkipCountdown.value = AD_SKIP_SECONDS
+  adSkipInterval = setInterval(async () => {
+    adSkipCountdown.value--
+    if (adSkipCountdown.value > 0) return
+    clearAdCountdown()
+    const nextIdx = idx + 1
+    if (nextIdx >= videos.value.length) await fetchMore()
+    if (nextIdx >= videos.value.length) return
+    if (container.value) container.value.scrollTo({ top: nextIdx * screenH.value, behavior: 'smooth' })
+    window.setTimeout(() => playAt(nextIdx), 220)
+  }, 1000)
+}
+
 // 取视频标签：优先用 v.tags 数组，否则从标题解析 #tag
 function getTags(v) {
   if (Array.isArray(v.tags) && v.tags.length) return v.tags
@@ -590,13 +622,16 @@ function initVideo(idx) {
 }
 
 function playAt(idx) {
-  // 广告 slide：停止所有视频，不尝试播放任何东西
+  // 广告 slide：停止所有视频，启动倒计时（连播模式）
   if (videos.value[idx]?._isAd) {
     stopAll()
     pausedIdx.value = -1
     currentPlayingIdx.value = -1
+    startAdCountdown(idx)
     return
   }
+  // 切到真实视频时清掉广告倒计时
+  clearAdCountdown()
   const el = videoRefs[idx]
   if (!el) return
 
@@ -821,6 +856,7 @@ function maybePrefetchFromIndex(idx = getCurrentScrollIdx()) {
 
 function toggleContinuousPlay() {
   continuousPlay.value = !continuousPlay.value
+  if (!continuousPlay.value) clearAdCountdown()
 }
 
 function toggleMuted() {
@@ -890,6 +926,7 @@ async function loadInitialFeed() {
 // 不修改 authorFilter，由调用方按需在调用前设置
 function resetFeedState() {
   hydrateToken++  // 取消正在进行的 hydrateFeedAfterTarget
+  clearAdCountdown()
   stopAll()
   Object.values(hlsMap).forEach(h => { try { h.destroy() } catch {} })
   for (const k of Object.keys(hlsMap)) delete hlsMap[k]
@@ -1117,6 +1154,7 @@ watch(() => route.query.id, async (newId) => {
 })
 
 onUnmounted(() => {
+  clearAdCountdown()
   stopAll()
   Object.values(hlsMap).forEach(h => h.destroy())
   itemObservers.forEach(o => o.disconnect())
