@@ -6,7 +6,8 @@ import "adult-short-videos/internal/service/video/dto"
 type GossipListReq struct {
 	Page     int    `form:"page"`
 	PageSize int    `form:"page_size"`
-	Tag      string `form:"tag"` // 按标签过滤，空表示全部
+	Tag      string `form:"tag"`     // 按标签过滤，空表示全部
+	Keyword  string `form:"keyword"` // 关键词搜索，匹配标题/摘要，空表示不过滤
 }
 
 // GossipItem 列表卡片数据

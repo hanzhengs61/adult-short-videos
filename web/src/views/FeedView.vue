@@ -309,24 +309,32 @@
           </div>
           <!-- 视频网格 -->
           <div class="flex-1 overflow-y-auto px-3 pb-5" @scroll.passive="onAuthorDrawerScroll">
-            <div v-if="authorDrawer.videosLoading" class="grid grid-cols-3 gap-1.5 pt-1">
-              <div v-for="i in 6" :key="i" class="aspect-[9/16] rounded-lg bg-white/5 animate-pulse"></div>
-            </div>
-            <div v-else-if="authorDrawer.videos?.length" class="grid grid-cols-3 gap-1.5 pt-1">
-              <button v-for="v in authorDrawer.videos" :key="v.video_id"
-                      @click="goToAuthorVideo(v)"
-                      class="relative aspect-[9/16] rounded-lg overflow-hidden bg-black block">
-                <img :src="v.cover_url" class="w-full h-full object-cover"/>
-                <div class="absolute bottom-1 left-1 flex items-center gap-0.5 text-white text-[10px]">
-                  <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                  {{ fmtN(v.play_count) }}
+            <!-- 骨架屏 -->
+            <div v-if="authorDrawer.videosLoading" class="flex gap-2 items-start pt-1">
+              <div v-for="col in 2" :key="col" class="flex-1 space-y-2">
+                <div v-for="i in 3" :key="i"
+                     class="rounded-xl bg-white/5 animate-pulse">
+                  <div class="aspect-video bg-white/5 rounded-t-xl"></div>
+                  <div class="p-2 space-y-1.5">
+                    <div class="h-2.5 bg-white/5 rounded w-full"></div>
+                    <div class="h-2 bg-white/5 rounded w-2/3"></div>
+                  </div>
                 </div>
-              </button>
-              <!-- 加载更多指示器 -->
-              <div v-if="authorDrawer.loadingMore" class="col-span-3 flex justify-center py-3">
-                <div class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"/>
               </div>
             </div>
+            <!-- 视频列表：复用 VideoCard，与主页外观完全一致 -->
+            <template v-else-if="authorDrawer.videos?.length">
+              <div class="flex gap-2 items-start pt-1">
+                <div v-for="(col, ci) in authorVideoColumns" :key="ci" class="flex-1 space-y-2">
+                  <VideoCard v-for="v in col" :key="v.video_id"
+                             :video="v" :prevent-navigate="true"
+                             @select="goToAuthorVideo"/>
+                </div>
+              </div>
+              <div v-if="authorDrawer.loadingMore" class="flex justify-center py-3">
+                <div class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"/>
+              </div>
+            </template>
             <p v-else class="text-center py-8 text-text-muted text-sm">暂无视频</p>
           </div>
         </div>
@@ -403,12 +411,13 @@
 </template>
 
 <script setup>
-import {nextTick, onMounted, onUnmounted, reactive, ref, watch} from 'vue'
+import {computed, nextTick, onMounted, onUnmounted, reactive, ref, watch} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import Hls from 'hls.js'
 import { videoApi, searchApi, favoriteApi, playApi, followApi } from '@/api'
 import { useUserStore } from '@/stores/user'
 import CommentSection from '@/components/common/CommentSection.vue'
+import VideoCard from '@/components/common/VideoCard.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -424,6 +433,12 @@ const currentPlayingIdx = ref(-1)
 const commentVideo = ref(null)
 // 用户信息抽屉：{ name, avatar }
 const authorDrawer = ref(null)
+// 把作者视频按 2 列分发，与主页瀑布流保持一致
+const authorVideoColumns = computed(() => {
+  const cols = [[], []]
+  ;(authorDrawer.value?.videos || []).forEach((v, i) => cols[i % 2].push(v))
+  return cols
+})
 const feedBackStack = ref([])
 // 分享面板当前视频
 const shareVideo = ref(null)

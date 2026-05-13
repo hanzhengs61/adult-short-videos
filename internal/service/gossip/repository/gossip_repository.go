@@ -11,7 +11,7 @@ import (
 
 // GossipRepository 吃瓜文章仓储接口
 type GossipRepository interface {
-	List(ctx context.Context, offset, limit int, tag string) ([]*model.GossipPost, int64, error)
+	List(ctx context.Context, offset, limit int, tag, keyword string) ([]*model.GossipPost, int64, error)
 	FindByID(ctx context.Context, id int64) (*model.GossipPost, error)
 	IncrementViewCount(ctx context.Context, id int64) error
 	// FindByTags 用于详情页关联视频查询时取同类标签的最新文章（目前未使用，预留）
@@ -26,11 +26,16 @@ func NewGossipRepository(db *gorm.DB) GossipRepository {
 	return &gossipRepository{db: db}
 }
 
-func (r *gossipRepository) List(ctx context.Context, offset, limit int, tag string) ([]*model.GossipPost, int64, error) {
+func (r *gossipRepository) List(ctx context.Context, offset, limit int, tag, keyword string) ([]*model.GossipPost, int64, error) {
 	q := r.db.WithContext(ctx).Model(&model.GossipPost{}).Where("status = 1")
 	if tag != "" {
 		// tags 字段为逗号分隔字符串，用 LIKE 过滤
 		q = q.Where("tags LIKE ?", "%"+tag+"%")
+	}
+	if keyword != "" {
+		// 同时匹配标题和摘要
+		like := "%" + keyword + "%"
+		q = q.Where("title LIKE ? OR summary LIKE ?", like, like)
 	}
 
 	var total int64

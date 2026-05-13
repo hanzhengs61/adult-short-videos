@@ -66,3 +66,10 @@ export const commentApi = {
     unlike: commentId => request.delete(`/comment/like/${commentId}`),
     delete: id => request.delete(`/comment/delete/${id}`),
 }
+
+// 标签热搜
+export const tagApi = {
+    hot: (limit = 10) => request.get('/tags/hot', { params: { limit } }),
+    click: name => request.post(`/tags/${encodeURIComponent(name)}/click`),
+}
+

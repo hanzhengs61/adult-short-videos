@@ -39,7 +39,7 @@ func (s *GossipService) GetList(ctx context.Context, req *gossipDTO.GossipListRe
 	}
 
 	offset := (req.Page - 1) * req.PageSize
-	posts, total, err := s.gossipRepo.List(ctx, offset, req.PageSize, req.Tag)
+	posts, total, err := s.gossipRepo.List(ctx, offset, req.PageSize, req.Tag, req.Keyword)
 	if err != nil {
 		logger.Error("查询吃瓜列表失败", zap.Error(err))
 		return nil, errors.New(errors.CodeDatabaseError, "查询失败")

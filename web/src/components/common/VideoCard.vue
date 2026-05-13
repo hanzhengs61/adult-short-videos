@@ -103,7 +103,10 @@ const props = defineProps({
   orderBy: { type: String, default: 'created_at' },
   // 搜索关键词，有值时 Feed 将继续按关键词过滤加载
   keyword: { type: String, default: '' },
+  // 设为 true 时阻止内部导航，改为向上 emit select 事件，由父组件处理跳转
+  preventNavigate: { type: Boolean, default: false },
 })
+const emit = defineEmits(['select'])
 const router = useRouter()
 const route = useRoute()
 
@@ -119,6 +122,10 @@ const HOME_FEED_RETURN_KEY = 'home_feed_return_anchor'
 
 function handleClick() {
   if (longPressed) { longPressed = false; return }
+  if (props.preventNavigate) {
+    emit('select', props.video)
+    return
+  }
   if (route.path === '/' && cardRoot.value) {
     const rect = cardRoot.value.getBoundingClientRect()
     sessionStorage.setItem(HOME_FEED_RETURN_KEY, JSON.stringify({

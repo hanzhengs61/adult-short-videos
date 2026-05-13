@@ -36,6 +36,20 @@ func (r *TagRepository) GetAllActive() ([]model.Tag, error) {
 	return tags, err
 }
 
+// GetHot 按点击数降序返回前 limit 个启用标签
+func (r *TagRepository) GetHot(limit int) ([]model.Tag, error) {
+	var tags []model.Tag
+	err := r.db.Where("status = 1").Order("click_count DESC, tag_id ASC").Limit(limit).Find(&tags).Error
+	return tags, err
+}
+
+// IncrClickCount 原子自增指定标签的点击数（标签不存在时静默忽略）
+func (r *TagRepository) IncrClickCount(name string) error {
+	return r.db.Model(&model.Tag{}).
+		Where("name = ? AND status = 1", name).
+		UpdateColumn("click_count", gorm.Expr("click_count + 1")).Error
+}
+
 // MatchTags 用标签库对标题做子串匹配，返回命中的标签名列表
 func MatchTags(tags []model.Tag, title string) []string {
 	result := make([]string, 0)
