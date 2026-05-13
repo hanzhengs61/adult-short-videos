@@ -31,27 +31,18 @@ func PasswordVerify(hashedPassword, password string) bool {
 }
 
 // JWTClaims JWT 载荷信息
-// 这是在 Token 中存储的信息
 type JWTClaims struct {
-	UserID               int64  `json:"user_id"`  // 用户 ID
-	Username             string `json:"username"` // 用户名
-	jwt.RegisteredClaims        // jwt 标准字段（过期时间等）
+	UserID   int64  `json:"user_id"`
+	Username string `json:"username"`
+	Role     string `json:"role"` // user / creator / admin
+	jwt.RegisteredClaims
 }
 
-// GenerateToken 生成 JWT Token
-// 参数：
-//
-// userID - 用户 ID
-// username - 用户名
-// secret - 密钥(用于签名)
-// expire - 过期时间
-//
-// 返回：JWT 字符串，错误信息
-func GenerateToken(userID int64, username string, secret string, expire int64) (string, error) {
-	// 创建 JWT 载荷
+func GenerateToken(userID int64, username, role, secret string, expire int64) (string, error) {
 	claims := JWTClaims{
 		UserID:   userID,
 		Username: username,
+		Role:     role,
 		RegisteredClaims: jwt.RegisteredClaims{
 			// 过期时间 = 当前时间 + expire 秒
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Duration(expire) * time.Second)),

@@ -62,11 +62,13 @@ func (h *VideoHandler) GetVideoDetail(c *gin.Context) {
 }
 
 // GetHotVideos 获取热门视频
-// 路由: GET /api/video/popular
+// 路由: GET /api/video/popular  GET /api/video/hot
+// 可选 query: limit（默认10）、days（>0 时只取近 N 天内发布，默认0=不限）
 func (h *VideoHandler) GetHotVideos(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	days, _ := strconv.Atoi(c.DefaultQuery("days", "0"))
 
-	resp, err := h.videoService.GetHotVideos(c.Request.Context(), limit)
+	resp, err := h.videoService.GetHotVideos(c.Request.Context(), limit, days)
 	if err != nil {
 		response.HandleError(c, err)
 		return

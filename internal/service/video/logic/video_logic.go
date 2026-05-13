@@ -126,11 +126,11 @@ func (s *VideoService) GetVideoDetail(ctx context.Context, videoId int64) (*dto.
 	}, nil
 }
 
-// GetHotVideos 获取热门视频列表
-func (s *VideoService) GetHotVideos(ctx context.Context, limit int) ([]dto.VideoItem, error) {
-	videos, err := s.videoRepo.GetHotVideos(ctx, limit)
+// GetHotVideos 获取热门视频；days>0 时只取最近 days 天内发布的
+func (s *VideoService) GetHotVideos(ctx context.Context, limit, days int) ([]dto.VideoItem, error) {
+	videos, err := s.videoRepo.GetHotVideos(ctx, limit, days, "")
 	if err != nil {
-		logger.Error("查询热门视频失败", zap.Error(err), zap.Int("limit", limit))
+		logger.Error("查询热门视频失败", zap.Error(err), zap.Int("limit", limit), zap.Int("days", days))
 		return nil, errors.New(errors.CodeDatabaseError, "查询热门视频失败")
 	}
 

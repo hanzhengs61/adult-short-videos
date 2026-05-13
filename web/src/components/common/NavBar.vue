@@ -66,7 +66,7 @@ const desktopNav = [
   {label: '首页', to: '/'},
   {label: '吃瓜', to: '/gossip'},
   {label: '探索', to: '/explore'},
-  {label: '榜单', to: '/rankings'},
+  {label: '福利', to: '/rankings'},
 ]
 
 function isActive(to) {

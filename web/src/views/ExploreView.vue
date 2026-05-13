@@ -46,7 +46,7 @@
         <div class="w-px h-4 bg-border mx-2 shrink-0"/>
         <!-- 输入框 -->
         <input v-model="searchInput" type="text" placeholder="搜索..."
-               class="flex-1 min-w-0 bg-transparent text-sm text-text-primary placeholder-text-muted outline-none"/>
+               class="flex-1 min-w-0 bg-transparent text-sm text-text-primary placeholder-text-primary/50 outline-none"/>
         <!-- 清除按钮 -->
         <button v-if="searchInput" type="button" @click="clearSearch"
                 class="mr-3 shrink-0 text-text-muted hover:text-text-primary transition-colors">
@@ -164,7 +164,7 @@
             最近搜索
           </h2>
           <button @click="exploreStore.clearHistory()"
-                  class="text-xs text-text-muted hover:text-red-400 transition-colors">全部清除
+                  class="text-xs text-text-primary/60 hover:text-red-400 transition-colors">全部清除
           </button>
         </div>
         <div class="flex flex-wrap gap-2">
@@ -221,77 +221,11 @@
         AD · 广告位
       </div>
 
-      <!-- 推荐创作者 -->
+      <!-- 猜你喜欢 -->
       <div class="mb-6">
-        <div class="flex items-center justify-between mb-3">
-          <h2 class="section-title text-sm">
-            <svg class="w-4 h-4 text-text-muted" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round"
-                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-            </svg>
-            推荐创作者
-          </h2>
-        </div>
-
-        <!-- 横滑创作者卡片 -->
-        <div class="flex gap-3 overflow-x-auto scrollbar-none pb-3 snap-x snap-mandatory -mx-3 px-3">
-          <div v-for="actor in actors" :key="actor.actor_id"
-               class="snap-start shrink-0 w-44 bg-bg-surface border border-border rounded-xl overflow-hidden
-                   hover:border-primary/30 hover:shadow-card-hover transition-all duration-300 cursor-pointer group"
-               @click="quickSearch(actor.name)">
-
-            <!-- 创作者头像 -->
-            <div class="p-3 flex items-center gap-2.5 border-b border-border/50">
-              <div class="w-9 h-9 rounded-full bg-gradient-primary p-0.5 shrink-0 group-hover:shadow-glow transition-shadow">
-                <div class="w-full h-full rounded-full bg-bg overflow-hidden flex items-center justify-center">
-                  <img v-if="actor.avatar" :src="actor.avatar" :alt="actor.name"
-                       class="w-full h-full object-cover"
-                       @error="e => e.target.style.display='none'"/>
-                  <span v-if="!actor.avatar" class="text-white font-bold text-sm">{{ actor.name[0] }}</span>
-                </div>
-              </div>
-              <div class="min-w-0">
-                <p class="text-sm font-semibold text-text-primary truncate group-hover:text-primary transition-colors">
-                  {{ actor.name }}
-                </p>
-                <p class="text-xs text-text-primary/60">创作者</p>
-              </div>
-            </div>
-
-            <!-- 视频预览缩略图（3宫格） -->
-            <div class="grid grid-cols-3 gap-0.5 p-0.5">
-              <div v-for="v in (actor.videos || []).slice(0,3)" :key="v?.video_id"
-                   class="aspect-square bg-bg-hover overflow-hidden">
-                <img v-if="v?.cover_url" :src="v.cover_url"
-                     class="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
-                     loading="lazy" @error="e => e.target.style.display='none'"/>
-                <div v-else class="w-full h-full bg-bg-hover flex items-center justify-center">
-                  <svg class="w-4 h-4 text-text-muted" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M8 5v14l11-7z"/>
-                  </svg>
-                </div>
-              </div>
-              <div v-for="i in Math.max(0, 3-(actor.videos||[]).length)" :key="`empty${i}`"
-                   class="aspect-square bg-bg-hover"></div>
-            </div>
-
-            <div class="px-3 py-2">
-              <p class="text-xs text-text-primary/60">点击查看全部作品</p>
-            </div>
-          </div>
-
-          <!-- 骨架 -->
-          <template v-if="actorsLoading">
-            <div v-for="i in 5" :key="`ask${i}`"
-                 class="snap-start shrink-0 w-44 bg-bg-surface border border-border rounded-xl overflow-hidden animate-pulse">
-              <div class="h-14 bg-bg-hover"></div>
-              <div class="grid grid-cols-3 gap-0.5 p-0.5">
-                <div v-for="j in 3" :key="j" class="aspect-square bg-bg-hover"></div>
-              </div>
-            </div>
-          </template>
-        </div>
+        <RecommendSection/>
       </div>
+
     </template>
   </div>
 </template>
@@ -303,15 +237,14 @@ import { useHead } from '@vueuse/head'
 import VideoCard from '@/components/common/VideoCard.vue'
 import SortBar from '@/components/common/SortBar.vue'
 import GossipCard from '@/components/common/GossipCard.vue'
+import RecommendSection from '@/components/common/RecommendSection.vue'
 import { useExploreStore } from '@/stores/explore'
-import { userApi, tagApi } from '@/api'
+import { tagApi } from '@/api'
 import { useExploreSearch } from '@/composables/useExploreSearch'
 
 const route = useRoute()
 const router = useRouter()
 const exploreStore = useExploreStore()
-const actors = ref([])
-const actorsLoading = ref(true)
 const showCategoryMenu = ref(false)
 // 热搜标签：从后端拉取，含点击数
 const hotTags = ref([])
@@ -378,23 +311,9 @@ async function fetchHotTags() {
   hotTagsLoading.value = false
 }
 
-async function fetchActors() {
-  actorsLoading.value = true
-  try {
-    const res = await userApi.creators(10)
-    actors.value = (res.data?.creators || []).map(c => ({
-      actor_id: c.user_id, name: c.username, avatar: c.avatar || '', videos: [],
-    }))
-  } catch {
-    actors.value = []
-  }
-  actorsLoading.value = false
-}
-
 watch(() => route.query.q, (newQ) => {
   if (newQ) { searchInput.value = String(newQ); doSearch() }
 }, { immediate: true })
 
 onMounted(fetchHotTags)
-onMounted(fetchActors)
 </script>

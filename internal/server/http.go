@@ -9,10 +9,12 @@ import (
 	"adult-short-videos/internal/pkg/cache"
 	"adult-short-videos/internal/pkg/logger"
 	"adult-short-videos/internal/pkg/middleware"
+	adHandler "adult-short-videos/internal/service/ad/handler"
 	commentHandler "adult-short-videos/internal/service/comment/handler"
 	favoriteHandler "adult-short-videos/internal/service/favorite/handler"
 	followHandler "adult-short-videos/internal/service/follow/handler"
 	gossipHandler "adult-short-videos/internal/service/gossip/handler"
+	manageHandler "adult-short-videos/internal/service/manage/handler"
 	playHandler "adult-short-videos/internal/service/play/handler"
 	searchHandler "adult-short-videos/internal/service/search/handler"
 	storageHandler "adult-short-videos/internal/service/storage/handler"
@@ -80,6 +82,8 @@ func buildRouter(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	followHandler.RegisterRoutes(api, db, cfg.JWT.Secret, cfg.Server.StaticAssetsBaseURL)
 	gossipHandler.RegisterRoutes(api, db)
 	tagHandler.RegisterRoutes(api, db)
+	adHandler.RegisterRoutes(api, db)
+	manageHandler.RegisterRoutes(api, db, cfg.JWT.Secret)
 
 	return r
 }

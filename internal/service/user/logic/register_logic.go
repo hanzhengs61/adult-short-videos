@@ -117,6 +117,7 @@ func (l *RegisterLogic) Register(req *RegisterReq) (*RegisterResp, error) {
 	accessToken, err := utils.GenerateToken(
 		user.UserId,
 		user.Username,
+		user.Role,
 		l.jwtSecret,
 		l.jwtExpire,
 	)
@@ -124,13 +125,12 @@ func (l *RegisterLogic) Register(req *RegisterReq) (*RegisterResp, error) {
 		return nil, errors.New(errors.CodeServerError, "生成访问令牌失败")
 	}
 
-	// 生成 Refresh Token（用于刷新 Access Token）
-	// Refresh Token 的有效期通常更长（这里是 7 天）
 	refreshToken, err := utils.GenerateToken(
 		user.UserId,
 		user.Username,
+		user.Role,
 		l.jwtSecret,
-		l.jwtExpire*7, // 7 倍的 Access Token 时间
+		l.jwtExpire*7,
 	)
 	if err != nil {
 		return nil, errors.New(errors.CodeServerError, "生成刷新令牌失败")

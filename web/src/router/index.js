@@ -1,5 +1,21 @@
 import {createRouter, createWebHistory} from 'vue-router'
 
+const manageRoutes = {
+    path: '/manage',
+    component: () => import('@/views/manage/ManageLayout.vue'),
+    meta: { requiresAdmin: true },
+    redirect: '/manage/dashboard',
+    children: [
+        { path: 'dashboard', component: () => import('@/views/manage/DashboardView.vue') },
+        { path: 'videos',    component: () => import('@/views/manage/VideosView.vue') },
+        { path: 'comments',  component: () => import('@/views/manage/CommentsView.vue') },
+        { path: 'users',     component: () => import('@/views/manage/UsersView.vue') },
+        { path: 'banners',   component: () => import('@/views/manage/AdsView.vue') },
+        { path: 'apps',      component: () => import('@/views/manage/AdsView.vue') },
+        { path: 'gossip',    component: () => import('@/views/manage/GossipView.vue') },
+    ],
+}
+
 const routes = [
     {path: '/', component: () => import('@/views/HomeView.vue')},
     {path: '/subscribe', component: () => import('@/views/SubscribeView.vue')},
@@ -11,6 +27,7 @@ const routes = [
     {path: '/profile', component: () => import('@/views/ProfileView.vue')},
     {path: '/video/:id', component: () => import('@/views/VideoDetail.vue')},
     {path: '/feed', component: () => import('@/views/FeedView.vue')},
+    manageRoutes,
 ]
 
 const router = createRouter({
@@ -32,6 +49,21 @@ const router = createRouter({
         }
         return {top: 0}
     },
+})
+
+// 管理后台守卫：检查 JWT 中的 role 字段
+router.beforeEach((to) => {
+    if (!to.meta.requiresAdmin) return true
+    try {
+        const token = localStorage.getItem('access_token')
+        if (!token) return '/'
+        // JWT payload 是 base64，无需验证签名，只看 role 字段
+        const payload = JSON.parse(atob(token.split('.')[1]))
+        if (payload.role !== 'admin') return '/'
+    } catch {
+        return '/'
+    }
+    return true
 })
 
 export default router

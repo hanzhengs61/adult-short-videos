@@ -74,12 +74,12 @@ func (s *UserService) Login(ctx context.Context, req *dto.LoginReq) (*dto.LoginR
 	metrics.UserLoginsTotal.WithLabelValues("true").Inc()
 
 	// 6: 生成 JWT Token
-	accessToken, err := utils.GenerateToken(user.UserId, user.Username, s.jwtSecret, s.jwtExpire)
+	accessToken, err := utils.GenerateToken(user.UserId, user.Username, user.Role, s.jwtSecret, s.jwtExpire)
 	if err != nil {
 		return nil, errors.New(errors.CodeTokenInvalid, "Token生成失败")
 	}
 
-	refreshToken, err := utils.GenerateToken(user.UserId, user.Username, s.jwtSecret, s.jwtExpire*7)
+	refreshToken, err := utils.GenerateToken(user.UserId, user.Username, user.Role, s.jwtSecret, s.jwtExpire*7)
 	if err != nil {
 		return nil, errors.New(errors.CodeTokenInvalid, "Token生成失败")
 	}
@@ -137,11 +137,11 @@ func (s *UserService) Register(ctx context.Context, req *dto.RegisterReq) (*dto.
 	}
 
 	// 生成 JWT Token
-	accessToken, err := utils.GenerateToken(user.UserId, user.Username, s.jwtSecret, s.jwtExpire)
+	accessToken, err := utils.GenerateToken(user.UserId, user.Username, user.Role, s.jwtSecret, s.jwtExpire)
 	if err != nil {
 		return nil, errors.New(errors.CodeServerError, "生成令牌失败")
 	}
-	refreshToken, err := utils.GenerateToken(user.UserId, user.Username, s.jwtSecret, s.jwtExpire*7)
+	refreshToken, err := utils.GenerateToken(user.UserId, user.Username, user.Role, s.jwtSecret, s.jwtExpire*7)
 	if err != nil {
 		return nil, errors.New(errors.CodeServerError, "生成令牌失败")
 	}

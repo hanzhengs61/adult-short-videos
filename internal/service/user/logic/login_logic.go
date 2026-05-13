@@ -100,6 +100,7 @@ func (l *LoginLogic) Login(req *LoginReq) (*LoginResp, error) {
 	accessToken, err := utils.GenerateToken(
 		user.UserId,
 		user.Username,
+		user.Role,
 		l.jwtSecret,
 		l.jwtExpire,
 	)
@@ -110,6 +111,7 @@ func (l *LoginLogic) Login(req *LoginReq) (*LoginResp, error) {
 	refreshToken, err := utils.GenerateToken(
 		user.UserId,
 		user.Username,
+		user.Role,
 		l.jwtSecret,
 		l.jwtExpire*7,
 	)

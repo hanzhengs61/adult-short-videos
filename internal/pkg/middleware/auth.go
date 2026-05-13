@@ -62,7 +62,20 @@ func AuthMiddleware(jwtSecret string) gin.HandlerFunc {
 		// 5: 将用户信息存入上下文
 		c.Set("user_id", claims.UserID)
 		c.Set("username", claims.Username)
+		c.Set("role", claims.Role)
 
+		c.Next()
+	}
+}
+
+// AdminMiddleware 管理员鉴权，须放在 AuthMiddleware 之后
+func AdminMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		role, _ := c.Get("role")
+		if role != "admin" {
+			response.Forbidden(c, "无管理员权限")
+			return
+		}
 		c.Next()
 	}
 }
@@ -103,6 +116,7 @@ func OptionalAuthMiddleware(jwtSecret string) gin.HandlerFunc {
 
 		c.Set("user_id", claims.UserID)
 		c.Set("username", claims.Username)
+		c.Set("role", claims.Role)
 		c.Next()
 	}
 }

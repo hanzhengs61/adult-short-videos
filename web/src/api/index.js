@@ -20,6 +20,10 @@ export const videoApi = {
     list: params => request.get('/video/list', {params}),
     detail: id => request.get(`/video/detail/${id}`),
     popular: params => request.get('/video/popular', {params}),
+    // 今日热门：复用 popular，加 days=7 只取近7天发布的
+    todayHot: (limit = 9) => request.get('/video/popular', { params: { limit, days: 7 } }),
+    // 猜你喜欢：全量热门，前端过滤掉已展示的
+    recommend: (limit = 6) => request.get('/video/popular', { params: { limit: limit + 9 } }),
 }
 
 // 搜索
@@ -71,5 +75,11 @@ export const commentApi = {
 export const tagApi = {
     hot: (limit = 10) => request.get('/tags/hot', { params: { limit } }),
     click: name => request.post(`/tags/${encodeURIComponent(name)}/click`),
+}
+
+// 广告
+export const adApi = {
+    banners: () => request.get('/ad/banners'),
+    apps: (category = '') => request.get('/ad/apps', { params: { category } }),
 }
 

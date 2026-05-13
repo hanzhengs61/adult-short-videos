@@ -68,3 +68,13 @@ func Unauthorized(c *gin.Context, msg string) {
 	})
 	c.Abort()
 }
+
+// Forbidden 无权限响应
+func Forbidden(c *gin.Context, msg string) {
+	c.JSON(http.StatusForbidden, Response{
+		Code: http.StatusForbidden,
+		Msg:  msg,
+		Data: nil,
+	})
+	c.Abort()
+}

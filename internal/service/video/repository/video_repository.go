@@ -27,7 +27,9 @@ const authorJoin = `LEFT JOIN users u ON v.user_id > 0 AND u.user_id = v.user_id
 type VideoRepository interface {
 	FindByID(ctx context.Context, videoId int64) (*model.VideoWithAuthor, error)
 	List(ctx context.Context, offset, limit int, filters map[string]interface{}) ([]*model.VideoWithAuthor, int64, error)
-	GetHotVideos(ctx context.Context, limit int) ([]*model.VideoWithAuthor, error)
+	// GetHotVideos 按热度排序。days>0 时只查近 days 天内发布的视频；
+	// period: "day"=按24h播放, "week"=按7d播放, 其他=按热度分
+	GetHotVideos(ctx context.Context, limit, days int, period string) ([]*model.VideoWithAuthor, error)
 	IncrementPlayCount(ctx context.Context, videoId int64) error
 }
 
@@ -97,17 +99,21 @@ func (r *videoRepository) List(ctx context.Context, offset, limit int, filters m
 	return videos, total, err
 }
 
-func (r *videoRepository) GetHotVideos(ctx context.Context, limit int) ([]*model.VideoWithAuthor, error) {
+func (r *videoRepository) GetHotVideos(ctx context.Context, limit, days int, period string) ([]*model.VideoWithAuthor, error) {
 	var videos []*model.VideoWithAuthor
-	err := r.db.WithContext(ctx).
+	q := r.db.WithContext(ctx).
 		Table("videos v").
 		Select(authorSelect).
 		Joins(authorJoin).
 		Joins("INNER JOIN video_heat_stats h ON v.video_id = h.video_id").
-		Where("h.is_hot = ? AND v.status = 1", true).
-		Order("h.heat_score DESC").
-		Limit(limit).
-		Scan(&videos).Error
+		Where("h.is_hot = ? AND v.status = 1", true)
+	if days > 0 {
+		q = q.Where("v.published_at >= NOW() - ? * INTERVAL '1 day'", days)
+	}
+	err := q.Order("h.heat_score DESC").Limit(limit).Scan(&videos).Error
+	if err == nil && len(videos) == 0 && days > 0 {
+		return r.GetHotVideos(ctx, limit, 0, period)
+	}
 	return videos, err
 }
 

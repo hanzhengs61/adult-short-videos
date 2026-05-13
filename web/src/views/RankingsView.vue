@@ -1,201 +1,346 @@
 <template>
-  <div class="max-w-screen-xl mx-auto px-3 sm:px-4 py-4">
+  <div class="pb-8">
 
-    <!-- 控制栏 -->
-    <div class="flex flex-col gap-2 mb-6">
-      <div class="flex bg-bg-surface border border-border rounded-xl p-1 gap-1">
-        <button v-for="t in types" :key="t.value" @click="activeType = t.value"
-                :class="['px-4 py-1.5 rounded-lg text-sm font-semibold transition-all',
-            activeType===t.value ? 'bg-gradient-primary text-white' : 'text-text-primary/60 hover:text-text-primary']">
-          {{ t.label }}
-        </button>
+    <!-- ① 顶部标题 -->
+    <div class="text-center py-3 px-4">
+      <p class="text-sm font-semibold text-text-primary/80 tracking-wide">
+        福利APP下载免费领VIP
+      </p>
+    </div>
+
+    <!-- ② Banner 轮播 -->
+    <div class="relative overflow-hidden mx-3 rounded-xl"
+         style="height:160px"
+         @touchstart.passive="onTouchStart"
+         @touchend="onTouchEnd">
+      <div class="flex h-full transition-transform duration-500 ease-in-out"
+           :style="`transform:translateX(-${bannerIdx * 100}%)`">
+        <div v-for="(b, i) in banners" :key="i"
+             class="shrink-0 w-full h-full relative cursor-pointer rounded-xl overflow-hidden"
+             :style="b.bg"
+             @click="b.url && openUrl(b.url)">
+          <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
+          <!-- 主文案 -->
+          <div class="absolute inset-0 flex flex-col items-center justify-center gap-1 px-4 text-center">
+            <p class="text-2xl sm:text-3xl font-black text-white drop-shadow-lg leading-tight"
+               v-html="b.title"></p>
+            <p class="text-xs text-white/75">{{ b.sub }}</p>
+          </div>
+          <!-- 角标 -->
+          <span v-if="b.tag"
+                class="absolute top-2 left-2 text-[10px] font-bold px-2 py-0.5 rounded"
+                :class="b.tagClass">{{ b.tag }}</span>
+        </div>
       </div>
-
-      <!-- 视频榜才显示时间筛选 -->
-      <div v-if="activeType !== 'creator'" class="flex gap-1.5">
-        <button v-for="p in periods" :key="p.value" @click="activePeriod = p.value"
-                :class="['px-3.5 py-1.5 rounded-full text-sm border font-medium transition-all',
-            activePeriod===p.value
-              ? 'border-primary/60 text-primary bg-primary/10'
-              : 'border-border text-text-primary/60 hover:border-border-light hover:text-text-primary']">
-          {{ p.label }}
-        </button>
-      </div>
-
-      <div class="ml-auto hidden sm:flex items-center gap-1.5 text-xs text-text-primary/60">
-        <svg class="w-3.5 h-3.5 text-primary" fill="currentColor" viewBox="0 0 24 24">
-          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-        </svg>
-        更新于今日 00:00
+      <!-- 指示点 -->
+      <div class="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1.5">
+        <span v-for="(_, i) in banners" :key="i"
+              class="rounded-full transition-all duration-300 cursor-pointer"
+              :class="bannerIdx===i ? 'w-5 h-1.5 bg-primary' : 'w-1.5 h-1.5 bg-white/30'"
+              @click="bannerIdx = i"></span>
       </div>
     </div>
 
-    <div v-if="loading" class="space-y-3">
-      <div v-for="i in 10" :key="i" class="h-20 bg-bg-surface rounded-xl animate-pulse border border-border/50"></div>
+    <!-- ③ 分类 Tab（横向可滚动） -->
+    <div class="mt-4 px-3">
+      <div class="flex gap-2 overflow-x-auto scrollbar-none pb-1">
+        <button v-for="c in categories" :key="c.value"
+                class="shrink-0 px-4 py-1.5 rounded-full text-sm font-semibold transition-all"
+                :class="activeCategory === c.value
+                  ? 'bg-primary text-white shadow-glow'
+                  : 'text-text-secondary hover:text-text-primary border border-border hover:border-border-light'"
+                @click="activeCategory = c.value">
+          {{ c.label }}
+        </button>
+      </div>
     </div>
 
-    <!-- 创作者榜 -->
-    <template v-else-if="activeType === 'creator'">
-      <div v-if="creators.length" class="space-y-3">
-        <div v-for="(c, i) in creators" :key="c.user_id"
-             class="flex items-center gap-3 p-3 rounded-xl bg-bg-surface border border-border/50
-                    hover:border-border hover:bg-bg-hover transition-all cursor-pointer group">
-          <!-- 排名 -->
-          <div :class="['w-7 text-center font-black text-sm shrink-0',
-            i===0 ? 'text-yellow-500' : i===1 ? 'text-gray-400' : i===2 ? 'text-amber-600' : 'text-text-muted']">
-            {{ i + 1 }}
+    <!-- ④ App 图标网格 -->
+    <div class="mt-3 px-3 grid grid-cols-4 gap-x-3 gap-y-5">
+      <div v-for="app in filteredApps" :key="app.id"
+           class="flex flex-col items-center gap-2 cursor-pointer group"
+           @click="openUrl(app.url)">
+        <!-- App 图标 -->
+        <div class="w-full aspect-square rounded-2xl overflow-hidden relative shadow-lg
+                    border border-white/10 transition-transform duration-200 active:scale-90 group-hover:scale-95"
+             :style="app.bg">
+          <!-- 内容区 -->
+          <div class="absolute inset-0 flex flex-col items-center justify-center gap-0.5 px-1">
+            <span class="text-3xl leading-none">{{ app.icon }}</span>
+            <span v-if="app.iconText"
+                  class="text-[10px] font-black text-white/90 text-center leading-tight mt-0.5"
+                  style="text-shadow:0 1px 2px rgba(0,0,0,0.8)">{{ app.iconText }}</span>
           </div>
-          <!-- 头像 -->
-          <img src="/logo.png" :alt="c.username"
-               class="w-10 h-10 rounded-full shrink-0 object-cover"/>
-          <!-- 信息 -->
-          <div class="flex-1 min-w-0">
-            <p class="text-base font-semibold text-text-primary group-hover:text-primary transition-colors truncate">
-              {{ c.username }}
-            </p>
-            <div class="flex items-center gap-3 mt-0.5 text-sm text-text-primary/60">
-              <span>{{ c.video_count }} 个视频</span>
-              <span>{{ formatCount(c.total_plays) }} 播放</span>
-            </div>
-          </div>
-          <!-- 奖牌 -->
-          <span v-if="i===0" class="text-lg shrink-0">🥇</span>
-          <span v-else-if="i===1" class="text-lg shrink-0">🥈</span>
-          <span v-else-if="i===2" class="text-lg shrink-0">🥉</span>
+          <!-- 官方角标 -->
+          <span v-if="app.official"
+                class="absolute top-1 left-1 text-[9px] font-black px-1 py-0.5 rounded
+                       bg-primary text-white leading-none">官方</span>
+          <!-- 热门角标 -->
+          <span v-if="app.hot"
+                class="absolute top-1 right-1 text-[9px] font-black px-1 py-0.5 rounded
+                       bg-red-500 text-white leading-none">HOT</span>
         </div>
+        <!-- 名称 -->
+        <p class="text-xs text-text-secondary text-center leading-tight w-full truncate group-hover:text-text-primary transition-colors">
+          {{ app.name }}
+        </p>
+        <!-- 下载按钮 -->
+        <button class="w-full text-xs py-1 rounded-full border border-primary/60 text-primary
+                       hover:bg-primary hover:text-white transition-all font-medium active:scale-95">
+          立即下载
+        </button>
       </div>
-      <div v-else class="text-center py-20 text-text-muted">暂无创作者数据</div>
-    </template>
+    </div>
 
-    <!-- 视频榜 -->
-    <template v-else-if="videos.length">
-      <!-- TOP 3 大卡片 -->
-      <div class="grid grid-cols-3 gap-3 mb-6">
-        <div v-for="(v, i) in videos.slice(0,3)" :key="v.video_id"
-             :class="['relative rounded-xl overflow-hidden border cursor-pointer group transition-all hover:-translate-y-0.5',
-            i===0 ? 'border-yellow-500/40 ring-1 ring-yellow-500/20' :
-            i===1 ? 'border-gray-400/30' : 'border-amber-700/30']"
-             @click="$router.push(`/video/${v.video_id}`)">
-          <div class="relative aspect-video overflow-hidden">
-            <img :src="v.cover_url" :alt="v.title"
-                 class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                 @error="e => e.target.src='/placeholder.svg'" loading="lazy"/>
-            <div class="absolute inset-0 bg-gradient-card"></div>
-            <div :class="['absolute top-2 left-2 w-7 h-7 rounded-lg flex items-center justify-center font-black text-sm',
-              i===0 ? 'bg-yellow-500 text-black' : i===1 ? 'bg-gray-300 text-black' : 'bg-amber-700 text-white']">
-              {{ i + 1 }}
-            </div>
-            <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-              <div class="w-10 h-10 rounded-full bg-white/20 backdrop-blur flex items-center justify-center">
-                <svg class="w-5 h-5 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-              </div>
-            </div>
-          </div>
-          <div class="p-2.5">
-            <p class="text-sm font-medium text-text-primary line-clamp-2 leading-snug mb-1">{{ v.title }}</p>
-            <div class="flex items-center justify-between text-xs text-text-primary/60">
-              <span>{{ formatCount(v.play_count) }} 播放</span>
-              <span v-if="i===0" class="text-yellow-500 font-bold text-[10px]">🥇 冠军</span>
-              <span v-else-if="i===1" class="text-gray-400 font-bold text-[10px]">🥈 亚军</span>
-              <span v-else class="text-amber-600 font-bold text-[10px]">🥉 季军</span>
-            </div>
-          </div>
-        </div>
-      </div>
+    <!-- ⑤ 加载更多占位 -->
+    <p class="text-center text-xs text-text-muted mt-8">── 已加载全部应用 ──</p>
 
-      <!-- 4-20 名列表 -->
-      <div class="space-y-2">
-        <div v-for="(v, i) in videos.slice(3, 20)" :key="v.video_id"
-             class="flex items-center gap-3 p-3 rounded-xl bg-bg-surface border border-border/50
-                    hover:border-border hover:bg-bg-hover cursor-pointer group transition-all"
-             @click="$router.push(`/video/${v.video_id}`)">
-          <div :class="['w-7 text-center font-black text-sm shrink-0',
-            i < 3 ? 'text-primary' : 'text-text-muted']">{{ i + 4 }}</div>
-          <div class="relative w-24 sm:w-28 aspect-video rounded-lg overflow-hidden bg-bg-card shrink-0">
-            <img :src="v.cover_url" class="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                 loading="lazy" @error="e => e.target.src='/placeholder.svg'"/>
-            <span v-if="v.duration"
-                  class="absolute bottom-1 right-1 px-1 rounded bg-black/80 text-white text-[10px] font-mono">
-              {{ formatDuration(v.duration) }}
-            </span>
-          </div>
-          <div class="flex-1 min-w-0">
-            <p class="text-base text-text-primary line-clamp-2 leading-snug group-hover:text-primary transition-colors">
-              {{ v.title }}
-            </p>
-            <div class="flex items-center gap-3 mt-1.5 text-sm text-text-primary/60 flex-wrap">
-              <span class="flex items-center gap-1">
-                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5C21.27 7.61 17 4.5 12 4.5z"/>
-                </svg>
-                {{ formatCount(v.play_count) }}
-              </span>
-              <span v-if="v.region">{{ v.region }}</span>
-            </div>
-          </div>
-          <svg class="w-4 h-4 text-text-muted shrink-0 hidden sm:block" fill="none" stroke="currentColor"
-               stroke-width="2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
-          </svg>
-        </div>
-      </div>
-    </template>
-
-    <div v-else-if="!loading" class="text-center py-20 text-text-muted">暂无数据</div>
   </div>
 </template>
 
 <script setup>
-import { onMounted, ref, watch } from 'vue'
-import { videoApi, userApi } from '@/api'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 
-const activeType = ref('short')
-const activePeriod = ref('day')
-const videos = ref([])
-const creators = ref([])
-const loading = ref(true)
+// ── Banner ────────────────────────────────────────────
+const bannerIdx = ref(0)
+let bannerTimer = null
 
-const types = [
-  { label: '短视频', value: 'short' },
-  { label: '长视频', value: 'long' },
-  { label: '创作者', value: 'creator' },
+const banners = [
+  {
+    title: '送你 <span style="color:#FFE600">1888</span> · 1元爆大奖',
+    sub: 'PG电子 · 扶持放水 · PG72.COM',
+    bg: 'background:linear-gradient(135deg,#0f0080 0%,#3a00cc 40%,#7B2FFF 100%)',
+    tag: '赌场', tagClass: 'bg-yellow-400 text-black',
+    url: '#',
+  },
+  {
+    title: '注册送 <span style="color:#FFD700">888</span> 体验金',
+    sub: '开元棋牌 · 官方正版 · 8319.COM',
+    bg: 'background:linear-gradient(135deg,#8B0000 0%,#c0392b 50%,#e74c3c 100%)',
+    tag: '官方', tagClass: 'bg-primary text-white',
+    url: '#',
+  },
+  {
+    title: '全国寂寞小姐姐\n等你来撩',
+    sub: '约炮裸聊 · 真人在线 · 免费注册',
+    bg: 'background:linear-gradient(135deg,#1a0533 0%,#6B21A8 60%,#FF2080 100%)',
+    tag: '直播', tagClass: 'bg-blue-500 text-white',
+    url: '#',
+  },
+  {
+    title: '福利APP下载\n免费领 <span style="color:#FF2080">VIP</span>',
+    sub: '海量内容 · 每日更新 · 无需翻墙',
+    bg: 'background:linear-gradient(135deg,#003322 0%,#006644 50%,#00aa66 100%)',
+    tag: '免费', tagClass: 'bg-emerald-500 text-white',
+    url: '#',
+  },
 ]
-const periods = [
-  { label: '日榜', value: 'day' },
-  { label: '周榜', value: 'week' },
-  { label: '月榜', value: 'month' },
+
+function startBanner() {
+  bannerTimer = setInterval(() => {
+    bannerIdx.value = (bannerIdx.value + 1) % banners.length
+  }, 4000)
+}
+
+let touchX = 0
+function onTouchStart(e) { touchX = e.touches[0].clientX }
+function onTouchEnd(e) {
+  const dx = e.changedTouches[0].clientX - touchX
+  if (Math.abs(dx) < 40) return
+  bannerIdx.value = dx < 0
+    ? (bannerIdx.value + 1) % banners.length
+    : (bannerIdx.value - 1 + banners.length) % banners.length
+}
+
+// ── 分类 Tab ──────────────────────────────────────────
+const activeCategory = ref('all')
+
+const categories = [
+  { label: '推荐',   value: 'all'   },
+  { label: '国产看片', value: 'video' },
+  { label: '约炮裸聊', value: 'chat'  },
+  { label: '男同',   value: 'gay'   },
+  { label: '美女直播', value: 'live'  },
+  { label: '成人漫画', value: 'manga' },
+  { label: '电子游戏', value: 'game'  },
 ]
 
-async function fetchRankings() {
-  loading.value = true
-  try {
-    if (activeType.value === 'creator') {
-      const res = await userApi.creators(20)
-      creators.value = res.data?.creators || []
-    } else {
-      const res = await videoApi.popular({
-        page: 1, page_size: 20,
-        period: activePeriod.value, type: activeType.value
-      })
-      videos.value = res.data?.videos || []
-    }
-  } catch {
-    videos.value = []
-    creators.value = []
-  }
-  loading.value = false
+// ── App 数据 ──────────────────────────────────────────
+// 每条数据: id / name / icon(emoji) / iconText / bg(gradient) / official / hot / categories / url
+const apps = [
+  {
+    id: 1, name: '巨乳约炮',
+    icon: '🔞', iconText: null,
+    bg: 'background:linear-gradient(135deg,#1a0010,#7B2FFF)',
+    official: false, hot: true,
+    cats: ['all', 'chat'],
+    url: '#',
+  },
+  {
+    id: 2, name: '激情迷药',
+    icon: '💊', iconText: '情趣',
+    bg: 'background:linear-gradient(135deg,#003366,#0066cc)',
+    official: false, hot: false,
+    cats: ['all', 'chat'],
+    url: '#',
+  },
+  {
+    id: 3, name: 'PG电子',
+    icon: '🎰', iconText: 'PG',
+    bg: 'background:linear-gradient(135deg,#0f0080,#7B2FFF)',
+    official: true, hot: true,
+    cats: ['all', 'game'],
+    url: '#',
+  },
+  {
+    id: 4, name: '棋牌电子',
+    icon: '🃏', iconText: '888',
+    bg: 'background:linear-gradient(135deg,#003399,#0055cc)',
+    official: true, hot: false,
+    cats: ['all', 'game'],
+    url: '#',
+  },
+  {
+    id: 5, name: '3223棋牌',
+    icon: '♠️', iconText: 'KY',
+    bg: 'background:linear-gradient(135deg,#8B0000,#cc0000)',
+    official: true, hot: false,
+    cats: ['all', 'game'],
+    url: '#',
+  },
+  {
+    id: 6, name: '开元棋牌',
+    icon: '🎲', iconText: 'KY',
+    bg: 'background:linear-gradient(135deg,#333300,#999900)',
+    official: true, hot: false,
+    cats: ['all', 'game'],
+    url: '#',
+  },
+  {
+    id: 7, name: 'PG放水',
+    icon: '💸', iconText: '大放水',
+    bg: 'background:linear-gradient(135deg,#000000,#1a1a1a)',
+    official: false, hot: true,
+    cats: ['all', 'game'],
+    url: '#',
+  },
+  {
+    id: 8, name: '澳门赌场',
+    icon: '🎪', iconText: '翻倍',
+    bg: 'background:linear-gradient(135deg,#660000,#cc3300)',
+    official: false, hot: false,
+    cats: ['all', 'game'],
+    url: '#',
+  },
+  {
+    id: 9, name: '77直播',
+    icon: '📺', iconText: '77',
+    bg: 'background:linear-gradient(135deg,#8B0000,#FF2080)',
+    official: false, hot: true,
+    cats: ['all', 'live'],
+    url: '#',
+  },
+  {
+    id: 10, name: '澳门新葡京',
+    icon: '🏯', iconText: '3A',
+    bg: 'background:linear-gradient(135deg,#1a1a00,#4a4a00)',
+    official: true, hot: false,
+    cats: ['all', 'game'],
+    url: '#',
+  },
+  {
+    id: 11, name: '金沙直播',
+    icon: '🌟', iconText: '金沙',
+    bg: 'background:linear-gradient(135deg,#660033,#cc0066)',
+    official: false, hot: false,
+    cats: ['all', 'live'],
+    url: '#',
+  },
+  {
+    id: 12, name: '国产精品',
+    icon: '🎬', iconText: null,
+    bg: 'background:linear-gradient(135deg,#003300,#006600)',
+    official: false, hot: true,
+    cats: ['all', 'video'],
+    url: '#',
+  },
+  {
+    id: 13, name: '91约炮',
+    icon: '💬', iconText: '约炮',
+    bg: 'background:linear-gradient(135deg,#1a0033,#4a0099)',
+    official: false, hot: true,
+    cats: ['all', 'chat'],
+    url: '#',
+  },
+  {
+    id: 14, name: '男同专区',
+    icon: '👬', iconText: null,
+    bg: 'background:linear-gradient(135deg,#003366,#006699)',
+    official: false, hot: false,
+    cats: ['all', 'gay'],
+    url: '#',
+  },
+  {
+    id: 15, name: '成人漫画',
+    icon: '📖', iconText: 'H漫',
+    bg: 'background:linear-gradient(135deg,#330033,#660066)',
+    official: false, hot: false,
+    cats: ['all', 'manga'],
+    url: '#',
+  },
+  {
+    id: 16, name: '美女直播',
+    icon: '💃', iconText: null,
+    bg: 'background:linear-gradient(135deg,#4a0020,#FF2080)',
+    official: false, hot: true,
+    cats: ['all', 'live'],
+    url: '#',
+  },
+  {
+    id: 17, name: '麻豆传媒',
+    icon: '🎭', iconText: '麻豆',
+    bg: 'background:linear-gradient(135deg,#1a0000,#660000)',
+    official: true, hot: true,
+    cats: ['all', 'video'],
+    url: '#',
+  },
+  {
+    id: 18, name: '新葡京',
+    icon: '🎯', iconText: '024',
+    bg: 'background:linear-gradient(135deg,#660000,#990000)',
+    official: false, hot: false,
+    cats: ['all', 'game'],
+    url: '#',
+  },
+  {
+    id: 19, name: '裸聊平台',
+    icon: '📱', iconText: '裸聊',
+    bg: 'background:linear-gradient(135deg,#001a33,#0066cc)',
+    official: false, hot: false,
+    cats: ['all', 'chat'],
+    url: '#',
+  },
+  {
+    id: 20, name: '同志交友',
+    icon: '🌈', iconText: null,
+    bg: 'background:linear-gradient(135deg,#003344,#006688)',
+    official: false, hot: false,
+    cats: ['gay'],
+    url: '#',
+  },
+]
+
+const filteredApps = computed(() =>
+  activeCategory.value === 'all'
+    ? apps
+    : apps.filter(a => a.cats.includes(activeCategory.value))
+)
+
+function openUrl(url) {
+  // 实际接入时替换为真实链接
+  if (url && url !== '#') window.open(url, '_blank')
 }
 
-function formatCount(n) {
-  if (!n) return '0'
-  return n >= 10000 ? (n / 10000).toFixed(1) + '万' : String(n)
-}
-
-function formatDuration(s) {
-  if (!s) return ''
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
-}
-
-watch([activeType, activePeriod], fetchRankings)
-onMounted(fetchRankings)
+onMounted(startBanner)
+onUnmounted(() => clearInterval(bannerTimer))
 </script>
